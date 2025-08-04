@@ -1,0 +1,7 @@
+streamlit
+PyPDF2
+transformers
+torch
+pytesseract
+pillow
+pdf2image
