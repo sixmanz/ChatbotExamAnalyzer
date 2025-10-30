@@ -5,3 +5,4 @@ pdf2image
 python-dotenv
 google-generativeai
 pandas
+gunicorn
