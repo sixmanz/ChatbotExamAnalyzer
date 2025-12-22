@@ -21,7 +21,7 @@ load_dotenv()
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '').strip()
 
 # โมเดลที่ใช้ 
-GEMINI_BATCH_MODEL_NAME = "gemini-2.5-flash" 
+GEMINI_BATCH_MODEL_NAME = "gemini-flash-latest" 
 
 GEMINI_AVAILABLE = False
 try:
@@ -334,43 +334,58 @@ def clean_and_normalize(text):
 
 def extract_questions(raw_text):
     """
-    สกัดข้อสอบเป็นรายข้อ (เน้นความแม่นยำในการจับคู่ 1-99 และตัวเลือก ก. ข.)
+    สกัดข้อสอบเป็นรายข้อ (เน้นความแม่นยำในการจับคู่เลขข้อและตัวเลือก ก. ข.)
     """
     # 1. ทำความสะอาดข้อความทั้งหมด
     # ตัดส่วน "เฉลย" ทิ้ง เพื่อให้ AI วิเคราะห์เอง
     text = re.split(r"={10,}\s*เฉลย\s*={10,}", raw_text, flags=re.DOTALL | re.IGNORECASE)[0]
     cleaned_text = clean_and_normalize(text)
     
-    # 2. สร้าง Regex สำหรับจับเลขข้อ (จำกัดแค่ตัวเลข 1-99)
-    question_prefix = r'(?:[1-9]\d?\.|\([1-9]\d?\))\s*' 
+    # 2. สร้าง Regex สำหรับจับเลขข้อ (รองรับเลขหลายหลัก เช่น 1. 10. 100.)
+    # ใช้ \d+ แทน [1-9]\d? เพื่อรองรับเลขมากกว่า 99
+    question_prefix = r'(?:^|\n)\s*(?:\d+\.|\(\d+\))\s+' 
     
     # 3. สร้าง Regex สำหรับตัวเลือก (Thai/English)
-    option_marker = r'(?:ก\.\s*|A\.\s*)'
+    # ค้นหา ก. ข. ค. ง. หรือ A. B. C. D. อย่างน้อยหนึ่งตัว
+    option_marker = r'(?:[ก-งA-D]\.)'
     
-    # 4. รวม Regex: จับกลุ่มที่ขึ้นต้นด้วยเลขข้อ (1-99) และมีตัวเลือก ก./A. ตามมา
-    pattern = r'(\s*' + question_prefix + r'.*?' + option_marker + r'.*?)(?=\s*' + question_prefix + r'|\s*$)'
-    
-    # ค้นหาข้อสอบทั้งหมด
-    matches = re.findall(pattern, cleaned_text, flags=re.DOTALL | re.IGNORECASE)
+    # 4. แบ่งข้อความด้วยเลขข้อ
+    # Logic: หาจุดขึ้นต้นของแต่ละข้อ แล้วตัดแบ่ง
+    # ใช้ re.split โดยเก็บ delimiter (เลขข้อ) ไว้ด้วย
+    chunks = re.split(f"({question_prefix})", cleaned_text)
     
     questions = []
+    current_question = ""
     
-    # 5. การตรวจสอบความถูกต้องและจัดรูปแบบ
-    for m in matches:
-        q = m.strip()
+    # รวมส่วนหัวข้อและเนื้อหาข้อเข้าด้วยกัน
+    for chunk in chunks:
+        if not chunk.strip(): continue
         
-        # ตรวจสอบว่ามีตัวเลือก ก-ง หรือ A-D อย่างน้อย 2 ตัวหรือไม่
-        option_count_thai = len(re.findall(r'[ก-ง]\s*\.', q))
-        option_count_eng = len(re.findall(r'[A-D]\s*\.', q))
-        
-        # เงื่อนไข: ต้องมีตัวเลือกอย่างน้อย 2 ตัว
-        if option_count_thai >= 2 or option_count_eng >= 2:
-            # พยายามแยกตัวเลือกแต่ละตัวให้ขึ้นบรรทัดใหม่
-            q_formatted = re.sub(r'(\s*[กขคง]\s*\.)', r'\n\1', q)
-            q_formatted = re.sub(r'(\s*[A-D]\s*\.)', r'\n\1', q_formatted)
-            questions.append(q_formatted.strip())
-        
-    return questions
+        # ถ้า chunk เป็นเลขข้อ (เช่น "1. " หรือ "10. ")
+        if re.match(question_prefix, chunk):
+            if current_question:
+                questions.append(current_question.strip())
+            current_question = chunk # เริ่มข้อใหม่
+        else:
+            current_question += chunk # ต่อเนื้อหาเดิม
+            
+    # อย่าลืมข้อสุดท้าย
+    if current_question:
+        questions.append(current_question.strip())
+
+    # 5. การตรวจสอบความถูกต้อง (Validation)
+    valid_questions = []
+    for q in questions:
+        q = q.strip()
+        # ต้องมีตัวเลือก ก-ง หรือ A-D อย่างน้อย 2 ตัว
+        if len(re.findall(r'[ก-งA-D]\.', q)) >= 2:
+            # จัดรูปแบบตัวเลือกให้ขึ้นบรรทัดใหม่เพื่อความสวยงาม
+            q_formatted = re.sub(r'(\s+)([ก-งA-D]\.)', r'\n\2', q)
+            valid_questions.append(q_formatted)
+        elif len(q) > 1000: # ถ้าข้อความยาวผิดปกติอาจไม่ใช่ข้อสอบ
+            continue
+            
+    return valid_questions
 
 
 def analyze_with_gemini(question_text, question_id=1):
@@ -432,15 +447,17 @@ def analyze_with_gemini(question_text, question_id=1):
     config = GenerationConfig( 
         response_mime_type="application/json", 
         response_schema=json_schema, 
-        temperature=0.0
+        temperature=0.2  # เพิ่มเล็กน้อยเพื่อให้ได้ผลลัพธ์ที่หลากหลายขึ้น
     )
     
     last_error_message = ""
+    max_retries = 5  # เพิ่มจำนวน retry
 
-    for attempt in range(3):
-        delay = 2 ** attempt
+    for attempt in range(max_retries):
+        # Exponential backoff with jitter
         if attempt > 0:
-            time.sleep(delay)
+            base_delay = min(60, (2 ** attempt) + (attempt * 2))  # 2, 6, 12, 22, 38 seconds
+            time.sleep(base_delay)
             
         try:
             response = model.generate_content(
@@ -477,6 +494,7 @@ def analyze_with_gemini(question_text, question_id=1):
                 return False
 
             final_analysis = {}
+            missing_keys = []
             for key in required_keys:
                 raw_val = analysis.get(key)
                 if key == "is_good_question":
@@ -485,37 +503,53 @@ def analyze_with_gemini(question_text, question_id=1):
                     final_analysis[key] = safe_str(raw_val if raw_val is not None else "ไม่ระบุ")
                 
                 if key not in analysis:
-                    raise KeyError(f"JSON Output is missing required key: {key}")
+                    missing_keys.append(key)
+            
+            # ถ้ามี key ที่หายไป ให้ใส่ค่า default แทนการ raise error
+            if missing_keys:
+                for key in missing_keys:
+                    if key == "is_good_question":
+                        final_analysis[key] = False
+                    elif key == "improvement_suggestion":
+                        final_analysis[key] = "ไม่มีข้อเสนอแนะ"
+                    elif key == "why_good_distractor":
+                        final_analysis[key] = "ไม่ระบุ"
+                    else:
+                        final_analysis[key] = "ไม่ระบุ"
 
             return final_analysis
 
         except (json.JSONDecodeError, ValueError, KeyError) as e:
             last_error_message = f"ข้อผิดพลาดในการประมวลผล JSON/Key: {type(e).__name__}: {str(e)}"
-            continue # ลองใหม่ (Retry)
+            if attempt < max_retries - 1:
+                continue  # ลองใหม่ (Retry)
             
         except Exception as e:
-            error_str = str(e)
+            error_str = str(e).lower()
+            
             # Handle Rate Limit / Quota Exceeded (429 Error)
-            if "429" in error_str or "quota" in error_str.lower() or "ResourceExhausted" in error_str:
-                # Extract retry delay if available
-                retry_delay = 30  # Default 30 seconds
-                import re as regex_module
-                delay_match = regex_module.search(r'retry.*?(\d+)', error_str.lower())
-                if delay_match:
-                    retry_delay = int(delay_match.group(1)) + 5  # Add 5 seconds buffer
-                
-                last_error_message = f"⏳ Rate Limit: รอ {retry_delay} วินาที แล้วลองใหม่..."
-                
-                # Auto-retry after waiting
-                if attempt < 2:  # Only wait and retry if not last attempt
+            is_rate_limit = any([
+                "429" in str(e),
+                "quota" in error_str,
+                "resourceexhausted" in error_str,
+                "rate" in error_str and "limit" in error_str,
+                "too many requests" in error_str
+            ])
+            
+            if is_rate_limit:
+                # Calculate progressive delay
+                if attempt < max_retries - 1:
+                    retry_delay = min(120, 15 * (attempt + 1))  # 15, 30, 45, 60, 75 seconds
+                    last_error_message = f"⏳ Rate Limit: รอ {retry_delay} วินาที แล้วลองใหม่... (ครั้งที่ {attempt + 1}/{max_retries})"
                     time.sleep(retry_delay)
                     continue
                 else:
-                    last_error_message = f"❌ Quota Exceeded: คุณใช้โควต้า API ครบแล้ว กรุณารอ 24 ชั่วโมง หรืออัปเกรดแผนการใช้งาน"
+                    last_error_message = f"❌ Quota Exceeded: คุณใช้โควต้า API ครบแล้ว กรุณารอสักครู่หรือสร้าง API Key ใหม่"
                     break
             else:
                 last_error_message = f"ข้อผิดพลาด: {type(e).__name__}: {str(e)}"
-                continue
+                if attempt < max_retries - 1:
+                    continue
 
     # Fallback สุดท้าย: หาก AI วิเคราะห์ไม่ได้เลย
     return {
@@ -1184,11 +1218,18 @@ def run_app():
             for i, q_text in enumerate(question_texts):
                 st.write(t('analyzing_question').format(num=i+1))
                 analysis = analyze_with_gemini(q_text, question_id=i+1)
+                if "**เกิดข้อผิดพลาด" in analysis.get('improvement_suggestion', ''):
+                     st.error(f"Error analyzing question {i+1}: {analysis.get('improvement_suggestion')}")
+
                 analysis["question_text"] = q_text 
                 analysis_results.append(analysis)
                 
                 progress_percent = (i + 1) / len(question_texts)
                 progress_bar.progress(progress_percent, text=t('analysis_progress').format(current=i+1, total=len(question_texts)))
+                
+                # เพิ่ม delay ระหว่าง requests เพื่อหลีกเลี่ยง rate limit
+                if i < len(question_texts) - 1:  # ไม่ต้องรอหลังข้อสุดท้าย
+                    time.sleep(2)  # รอ 2 วินาทีระหว่างแต่ละ request
             
             # บันทึกผลลัพธ์ลงใน session state
             st.session_state.analysis_results = analysis_results
