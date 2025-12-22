@@ -308,6 +308,7 @@ def extract_text_from_pdf(pdf_reader):
             text += "\n"
     return text.strip()
 
+
 def clean_and_normalize(text):
     """ทำความสะอาดข้อความและแปลงเลขไทยเป็นเลขอารบิก"""
     if not text: return ""
@@ -326,65 +327,111 @@ def clean_and_normalize(text):
     # 4. ทำให้เลขข้อติดกับจุด (เช่น 1 . -> 1.)
     text = re.sub(r'(\d+)\s*\.', r'\1.', text)
     
+    # NEW: Insert newline before potential question start if preceded by punctuation or space
+    # Matches: "text. 2. text" -> "text.\n2. text"
+    # Matches: "text (2) text" -> "text\n(2) text"
+    text = re.sub(r'(\s+)(\(?\d+[\.\)])\s', r'\n\2 ', text)
+    
     # 5. ลบบรรทัดว่างที่ติดกันหลายบรรทัด
     text = re.sub(r'\n{2,}', '\n', text)
     
     lines = [line.strip() for line in text.split('\n')]
     return '\n'.join(lines)
 
+
+def extract_questions_with_ai(raw_text):
+    """
+    Fallback: ให้ AI ช่วยแยกข้อสอบเมื่อ Regex เอาไม่อยู่
+    """
+    if not GEMINI_AVAILABLE:
+        return []
+
+    try:
+        model = genai.GenerativeModel("gemini-1.5-flash-latest") # Use Flash for speed/cost
+        
+        prompt = f"""
+        You are an expert exam parser. 
+        Please extract all exam questions from the following text and return them as a JSON list of strings.
+        
+        Rules:
+        1. Capture the full question text including the question number and all options (e.g. "1. Question... A. Opt...").
+        2. Do not change the original text, just split it correctly.
+        3. If there are no clear questions, return an empty list.
+        4. Return ONLY raw JSON Array.
+
+        Text to parse:
+        {raw_text[:20000]} 
+        """
+        # Limit text to 20k chars to avoid token limits on fallback
+        
+        response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
+        questions = json.loads(response.text)
+        
+        if isinstance(questions, list):
+            return [str(q).strip() for q in questions]
+        else:
+            return []
+            
+    except Exception as e:
+        print(f"AI Extraction Failed: {e}")
+        return []
+
 def extract_questions(raw_text):
     """
-    สกัดข้อสอบเป็นรายข้อ (เน้นความแม่นยำในการจับคู่เลขข้อและตัวเลือก ก. ข.)
+    สกัดข้อสอบเป็นรายข้อ (ปรับปรุงให้รองรับหลายรูปแบบ: 1., 1), (1), ข้อ 1, ข้อที่ 1)
     """
     # 1. ทำความสะอาดข้อความทั้งหมด
-    # ตัดส่วน "เฉลย" ทิ้ง เพื่อให้ AI วิเคราะห์เอง
     text = re.split(r"={10,}\s*เฉลย\s*={10,}", raw_text, flags=re.DOTALL | re.IGNORECASE)[0]
     cleaned_text = clean_and_normalize(text)
     
-    # 2. สร้าง Regex สำหรับจับเลขข้อ (รองรับเลขหลายหลัก เช่น 1. 10. 100.)
-    # ใช้ \d+ แทน [1-9]\d? เพื่อรองรับเลขมากกว่า 99
-    question_prefix = r'(?:^|\n)\s*(?:\d+\.|\(\d+\))\s+' 
+    # 2. Regex สำหรับจับเลขข้อ
+    # รองรับ: "1.", "1)", "(1)", "ข้อ 1", "ข้อที่ 1", "ข้อ ๑", (และแบบมี space)
+    question_pattern = r'(?:^|\n)\s*((?:ข้อ\s*\d+|ข้อที่\s*\d+|\d+\.|(?:\(?\d+\)))[\.\s]+)'
     
-    # 3. สร้าง Regex สำหรับตัวเลือก (Thai/English)
-    # ค้นหา ก. ข. ค. ง. หรือ A. B. C. D. อย่างน้อยหนึ่งตัว
-    option_marker = r'(?:[ก-งA-D]\.)'
-    
-    # 4. แบ่งข้อความด้วยเลขข้อ
-    # Logic: หาจุดขึ้นต้นของแต่ละข้อ แล้วตัดแบ่ง
-    # ใช้ re.split โดยเก็บ delimiter (เลขข้อ) ไว้ด้วย
-    chunks = re.split(f"({question_prefix})", cleaned_text)
+    chunks = re.split(question_pattern, cleaned_text)
     
     questions = []
-    current_question = ""
     
-    # รวมส่วนหัวข้อและเนื้อหาข้อเข้าด้วยกัน
-    for chunk in chunks:
-        if not chunk.strip(): continue
-        
-        # ถ้า chunk เป็นเลขข้อ (เช่น "1. " หรือ "10. ")
-        if re.match(question_prefix, chunk):
-            if current_question:
-                questions.append(current_question.strip())
-            current_question = chunk # เริ่มข้อใหม่
-        else:
-            current_question += chunk # ต่อเนื้อหาเดิม
-            
-    # อย่าลืมข้อสุดท้าย
-    if current_question:
-        questions.append(current_question.strip())
+    # Skip preamble
+    start_idx = 0
+    if len(chunks) > 0 and not chunks[0].strip():
+        start_idx = 1
+    elif len(chunks) > 0 and not re.match(r'(?:ข้อ\s*\d+|ข้อที่\s*\d+|\d+\.|(?:\(?\d+\)))', chunks[0].strip()):
+        start_idx = 1 # Skip likely header
 
-    # 5. การตรวจสอบความถูกต้อง (Validation)
+    for i in range(start_idx, len(chunks), 2):
+        if i+1 < len(chunks):
+            delim = chunks[i]
+            content = chunks[i+1]
+            full_q = delim + content
+            questions.append(full_q.strip())
+
+    # 3. การตรวจสอบความถูกต้อง (Validation แบบยืดหยุ่น)
     valid_questions = []
     for q in questions:
         q = q.strip()
-        # ต้องมีตัวเลือก ก-ง หรือ A-D อย่างน้อย 2 ตัว
-        if len(re.findall(r'[ก-งA-D]\.', q)) >= 2:
-            # จัดรูปแบบตัวเลือกให้ขึ้นบรรทัดใหม่เพื่อความสวยงาม
+        if len(q) < 5: continue 
+        
+        has_std_options = len(re.findall(r'[ก-งA-D]\.', q)) >= 2
+        
+        if has_std_options:
             q_formatted = re.sub(r'(\s+)([ก-งA-D]\.)', r'\n\2', q)
             valid_questions.append(q_formatted)
-        elif len(q) > 1000: # ถ้าข้อความยาวผิดปกติอาจไม่ใช่ข้อสอบ
-            continue
-            
+        else:
+            if len(q) > 10: 
+                valid_questions.append(q)
+    
+    # --- FALLBACK TO AI ---
+    # ถ้าหาไม่เจอเลย หรือเจอน้อยผิดปกติเมื่อเทียบกับความยาวข้อความ (เช่น ข้อความยาว 5000 ตัวอักษร แต่เจอ 0 ข้อ)
+    # หรือถ้าเจอ < 3 ข้อ แต่ข้อความยาวมาก ให้ลองใช้ AI ช่วย
+    is_suspiciously_low = len(valid_questions) == 0 or (len(valid_questions) < 3 and len(raw_text) > 500)
+    
+    if is_suspiciously_low and GEMINI_AVAILABLE:
+        st.toast("⚠️ รูปแบบไฟล์ซับซ้อน กำลังใช้ AI ช่วยแกะข้อสอบ...", icon="🤖")
+        ai_extracted = extract_questions_with_ai(raw_text)
+        if len(ai_extracted) > len(valid_questions):
+             return ai_extracted
+
     return valid_questions
 
 
