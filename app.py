@@ -122,6 +122,95 @@ def render_user_manual():
         - ให้เปลี่ยน Provider เป็น **Groq** หรือ **OpenRouter** ทันที
         ''')
 
+
+def render_top_navigation():
+    """Show Top Navigation Bar (Settings & Manual)"""
+    with st.container():
+        col1, col2, col3, col4 = st.columns([1, 1, 1.5, 2])
+        
+        with col1:
+            # Language
+            st.button(
+                t('language_btn'), 
+                on_click=toggle_language,
+                use_container_width=True,
+                key='top_lang_toggle'
+            )
+            
+        with col2:
+            # Manual Popover/Expander
+            with st.expander("📚 คู่มือ", expanded=False):
+                st.markdown(t('tip_1'))
+                st.markdown(t('tip_2'))
+                st.markdown("---")
+                st.markdown(t('quota_warning'))
+
+        with col3:
+            # Provider Selector
+            provider_options = list(AI_PROVIDERS.keys())
+            current_idx = provider_options.index(st.session_state.selected_provider) if st.session_state.selected_provider in provider_options else 0
+            
+            new_provider = st.selectbox(
+                "AI Provider",
+                options=provider_options,
+                index=current_idx,
+                key='top_provider',
+                label_visibility="collapsed"
+            )
+            
+            if new_provider != st.session_state.selected_provider:
+                st.session_state.selected_provider = new_provider
+                # Reset model
+                first_model = list(AI_PROVIDERS[new_provider]["models"].keys())[0]
+                st.session_state.selected_model = first_model
+                st.session_state.analysis_results = None
+                st.rerun()
+
+        with col4:
+            # Model Selector
+            model_options = list(AI_PROVIDERS[st.session_state.selected_provider]["models"].keys())
+            current_midx = model_options.index(st.session_state.selected_model) if st.session_state.selected_model in model_options else 0
+            
+            new_model = st.selectbox(
+                "Model",
+                options=model_options,
+                index=current_midx,
+                key='top_model',
+                label_visibility="collapsed"
+            )
+            
+            if new_model != st.session_state.selected_model:
+                st.session_state.selected_model = new_model
+                st.session_state.analysis_results = None
+
+def render_sidebar_history():
+    """Show History in Sidebar"""
+    st.header("📜 ประวัติการวิเคราะห์")
+    history = load_analysis_history()
+    
+    if not history:
+        st.info("ยังไม่มีประวัติ")
+        return
+
+    # Show latest first
+    for i, entry in enumerate(reversed(history)):
+        timestamp = entry.get('timestamp', 'N/A')
+        filename = entry.get('filename', 'Unknown')
+        
+        # Format nice timestamp
+        try:
+            dt = datetime.fromisoformat(timestamp)
+            time_str = dt.strftime("%d/%m %H:%M")
+        except:
+            time_str = timestamp
+
+        if st.button(f"{time_str} - {filename}", key=f"hist_btn_{i}", use_container_width=True):
+            st.session_state.analysis_results = entry.get('results')
+            st.session_state.question_texts = entry.get('question_texts') # Optional restore
+            st.success(f"โหลดประวัติ: {filename}")
+            st.rerun()
+
+
 # Initialize session states
 if 'analysis_results' not in st.session_state:
     st.session_state.analysis_results = None
