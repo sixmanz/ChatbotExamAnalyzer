@@ -1282,7 +1282,7 @@ def run_app():
             st.session_state.language = 'th'
     
     # Modern Minimal Header (Dynamic)
-        render_top_navigation()
+    render_top_navigation()
     st.markdown('---')
     st.markdown(f"""
     <div style="text-align: center; padding: 1.5rem 1rem 2rem 1rem; margin-bottom: 0.5rem;">
