@@ -1279,6 +1279,28 @@ def run_app():
         
         current_model_id = AI_PROVIDERS[st.session_state.selected_provider]["models"].get(st.session_state.selected_model, "unknown")
         st.info(f"&#127919; `{current_model_id}`")
+
+        # --- Custom Prompt (Sidebar) ---
+        st.markdown("---")
+        with st.expander(t('custom_prompt_title'), expanded=False):
+            st.caption(t('custom_prompt_label'))
+            custom_prompt_input = st.text_area(
+                "Custom Prompt",
+                value=st.session_state.custom_prompt,
+                height=150,
+                placeholder=t('custom_prompt_placeholder'),
+                key='custom_prompt_sidebar',
+                label_visibility="collapsed"
+            )
+            
+            if custom_prompt_input != st.session_state.custom_prompt:
+                st.session_state.custom_prompt = custom_prompt_input
+                st.session_state.analysis_results = None
+            
+            if st.session_state.custom_prompt.strip():
+                st.success(t('custom_prompt_active'))
+            else:
+                st.info(t('custom_prompt_default'))
         
         st.markdown("---")
         st.subheader(t('tips_title'))
@@ -1292,31 +1314,7 @@ def run_app():
         if not GEMINI_AVAILABLE:
             st.error(t('api_warning'))
 
-    # --- Custom Prompt Section (Main Content) ---
-    st.markdown("---")
-    with st.expander(t('custom_prompt_title'), expanded=False):
-        st.markdown(f"**{t('custom_prompt_label')}**")
-        custom_prompt_input = st.text_area(
-            t('custom_prompt_label'),
-            value=st.session_state.custom_prompt,
-            height=150,
-            placeholder=t('custom_prompt_placeholder'),
-            key='custom_prompt_input',
-            label_visibility="collapsed"
-        )
-        
-        # Update session state
-        if custom_prompt_input != st.session_state.custom_prompt:
-            st.session_state.custom_prompt = custom_prompt_input
-            st.session_state.analysis_results = None
-        
-        # Show status in columns
-        col_status1, col_status2 = st.columns([1, 1])
-        with col_status1:
-            if st.session_state.custom_prompt.strip():
-                st.success(t('custom_prompt_active'))
-            else:
-                st.info(t('custom_prompt_default'))
+
 
     # --- Step 1: Upload ---
     st.markdown("---")
