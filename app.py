@@ -1196,10 +1196,10 @@ def run_app():
     st.markdown(f"""
     <div style="text-align: center; padding: 1.5rem 1rem 2rem 1rem; margin-bottom: 0.5rem;">
         <h1 style="font-size: 2.4rem; font-weight: 700; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 0.75rem;">
-            {t('header_title')}
+            {t('app_title')}
         </h1>
         <p style="font-size: 1.1rem; color: #4b5563; max-width: 600px; margin: 0 auto; line-height: 1.6;">
-            {t('header_subtitle')}
+            {t('app_subtitle')}
         </p>
     </div>
     """, unsafe_allow_html=True)
