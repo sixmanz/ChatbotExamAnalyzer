@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 import sys
 import subprocess
@@ -46,7 +47,7 @@ GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '').strip()
 GROQ_API_KEY = os.getenv('GROQ_API_KEY', '').strip()
 OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY', '').strip()
 
-# 🚀 Multi-Provider AI Configuration
+# &#128640; Multi-Provider AI Configuration
 AI_PROVIDERS = {
     "Gemini (Google)": {
         "models": {
@@ -99,29 +100,27 @@ if OPENROUTER_API_KEY and len(OPENROUTER_API_KEY) > 20:
     OPENROUTER_AVAILABLE = True
 
 def render_user_manual():
-    """แสดงคู่มือการใช้งานสำหรับผู้เริ่มต้น"""
-    with st.expander("📚 คู่มือสำหรับมือใหม่ (คลิกอ่าน)", expanded=False):
-        st.markdown("""
-        **1. เริ่มต้นใช้งาน 🚀**
+    """Show User Manual"""
+    with st.expander("&#128218; คู่มือสำหรับมือใหม่ (คลิกอ่าน)", expanded=False):
+        st.markdown('''
+        **1. เริ่มต้นใช้งาน &#128640;**
         - เลือกไฟล์ข้อสอบ (PDF, DOCX, TXT) จากเครื่อง
         - ระบบจะสกัดโจทย์ออกมาให้ตรวจสอบ
         
-        **2. การเลือก AI (สำคัญ) 🧠**
+        **2. การเลือก AI (สำคัญ) &#129504;**
         - **Gemini**: ฉลาดที่สุด แต่อาจติด Limit (429)
         - **Groq**: เร็วมาก & ฟรี! (แนะนำเมื่อ Gemini เต็ม)
         - *เปลี่ยนได้ที่ "เลือก AI Provider" ด้านล่าง*
         
-        **3. ฟีเจอร์พิเศษ ✨**
+        **3. ฟีเจอร์พิเศษ &#10024;**
         - **Export**: ดาวน์โหลด Excel/PDF ที่แท็บ Export
         - **สร้างข้อสอบ**: ให้ AI ช่วยคิดโจทย์ใหม่
         - **ประวัติ**: ดูผลย้อนหลังได้ที่ด้านล่างสุด
         
-        **4. แก้ปัญหา Error 429 ⚠️**
+        **4. แก้ปัญหา Error 429 &#9888;**
         - หาก AI ไม่ตอบ (Quota Exceeded)
         - ให้เปลี่ยน Provider เป็น **Groq** หรือ **OpenRouter** ทันที
-        \""")
-
-
+        ''')
 
 # Initialize session states
 if 'analysis_results' not in st.session_state:
@@ -143,16 +142,16 @@ if 'selected_model' not in st.session_state:
 TRANSLATIONS = {
     'th': {
         # Header
-        'app_title': '🚀 เครื่องมือวิเคราะห์คุณภาพข้อสอบ',
-        'app_subtitle': '✨ วิเคราะห์ข้อสอบอัตโนมัติด้วย <strong style="color: #667eea;">Gemini AI</strong> ตามหลักสูตรแกนกลางฯ และ <strong style="color: #764ba2;">Bloom\'s Taxonomy</strong>',
+        'app_title': '&#128640; เครื่องมือวิเคราะห์คุณภาพข้อสอบ',
+        'app_subtitle': '&#10024; วิเคราะห์ข้อสอบอัตโนมัติด้วย <strong style="color: #667eea;">Gemini AI</strong> ตามหลักสูตรแกนกลางฯ และ <strong style="color: #764ba2;">Bloom\'s Taxonomy</strong>',
         
         # Sidebar
         'sidebar_title': '⚙️ การตั้งค่า & สถานะ AI',
-        'ai_connected': '✅ เชื่อมต่อ AI สำเร็จ',
-        'ai_not_connected': '❌ ไม่พบ API Key (GEMINI_API_KEY) - กรุณาตั้งค่าใน `.env`',
+        'ai_connected': '&#9989; เชื่อมต่อ AI สำเร็จ',
+        'ai_not_connected': '&#10060; ไม่พบ API Key (GEMINI_API_KEY) - กรุณาตั้งค่าใน `.env`',
         'model_used': '**โมเดลที่ใช้งาน**',
         'batch_analysis': 'Batch Analysis',
-        'tips_title': '💡 เคล็ดลับ',
+        'tips_title': '&#128161; เคล็ดลับ',
         'tip_1': '- ใช้ไฟล์ **PDF** หรือ **TXT**',
         'tip_2': '- ข้อสอบควรมี **เลขข้อ** (เช่น 1., 2.) และ **ตัวเลือก** (เช่น ก., ข.)',
         'api_warning': 'โปรดทราบ: คุณต้องตั้งค่า GEMINI_API_KEY ในไฟล์ .env เพื่อใช้งานส่วนวิเคราะห์',
@@ -161,8 +160,8 @@ TRANSLATIONS = {
         'custom_prompt_title': '📝 Custom Prompt (ไม่บังคับ)',
         'custom_prompt_label': 'กรอก Prompt ที่ต้องการใช้แทน Prompt.txt:',
         'custom_prompt_placeholder': 'ปล่อยว่างเพื่อใช้ Prompt จากไฟล์ Prompt.txt...\n\nหรือกรอก Prompt ใหม่ที่นี่ เช่น:\n\nวิเคราะห์ข้อสอบนี้ตามหลัก Bloom\'s Taxonomy และให้คะแนนคุณภาพ...',
-        'custom_prompt_active': '✨ กำลังใช้ Custom Prompt',
-        'custom_prompt_default': '📄 กำลังใช้ Prompt จากไฟล์',
+        'custom_prompt_active': '&#10024; กำลังใช้ Custom Prompt',
+        'custom_prompt_default': '&#128196; กำลังใช้ Prompt จากไฟล์',
         
         # Step 1
         'step1_title': '1️⃣ อัปโหลดไฟล์ข้อสอบ (Batch Analysis)',
@@ -170,18 +169,18 @@ TRANSLATIONS = {
         'reading_file': '⏳ **กำลังอ่านและสกัดข้อสอบ:**',
         'from_file': 'จากไฟล์',
         'extracting': 'กำลังสกัดข้อความ...',
-        'no_questions_found': '❌ **ไม่พบข้อสอบ** กรุณาตรวจสอบรูปแบบไฟล์ (ไม่มีเลขข้อ/ตัวเลือก หรือรูปแบบซับซ้อนเกินไป)',
-        'file_tip': '💡 **เคล็ดลับการเตรียมไฟล์:** ไฟล์ควรมี **เลขข้อ** ที่ชัดเจน (เช่น 1., 2., 3.) และมี **ตัวเลือก** (เช่น ก., ข., ค., ง.)',
-        'file_read_error': '❌ **เกิดข้อผิดพลาดในการอ่านไฟล์:**',
-        'extracted_questions': '✅ สกัดข้อสอบได้แล้ว **{count} ข้อ** จากไฟล์ `{filename}`',
+        'no_questions_found': '&#10060; **ไม่พบข้อสอบ** กรุณาตรวจสอบรูปแบบไฟล์ (ไม่มีเลขข้อ/ตัวเลือก หรือรูปแบบซับซ้อนเกินไป)',
+        'file_tip': '&#128161; **เคล็ดลับการเตรียมไฟล์:** ไฟล์ควรมี **เลขข้อ** ที่ชัดเจน (เช่น 1., 2., 3.) และมี **ตัวเลือก** (เช่น ก., ข., ค., ง.)',
+        'file_read_error': '&#10060; **เกิดข้อผิดพลาดในการอ่านไฟล์:**',
+        'extracted_questions': '&#9989; สกัดข้อสอบได้แล้ว **{count} ข้อ** จากไฟล์ `{filename}`',
         
         # Step 2
-        'step2_title': '2️⃣ เริ่มต้นวิเคราะห์และสร้างรายงาน 🚀',
-        'start_analysis_btn': '🚀 **กดที่นี่เพื่อเริ่มการวิเคราะห์ด้วย AI**',
+        'step2_title': '2️⃣ เริ่มต้นวิเคราะห์และสร้างรายงาน &#128640;',
+        'start_analysis_btn': '&#128640; **กดที่นี่เพื่อเริ่มการวิเคราะห์ด้วย AI**',
         'api_not_ready': 'Key ไม่พร้อมใช้งาน กรุณาตรวจสอบการตั้งค่า',
-        'starting_analysis': '🚀 **กำลังเริ่มการวิเคราะห์ด้วย AI...**',
+        'starting_analysis': '&#128640; **กำลังเริ่มการวิเคราะห์ด้วย AI...**',
         'preparing_analysis': '⏳ กำลังเตรียมวิเคราะห์ข้อสอบ {count} ข้อ โดยใช้ `{model}`',
-        'analyzing_question': '🤖 วิเคราะห์ข้อที่ {num}...',
+        'analyzing_question': '&#129302; วิเคราะห์ข้อที่ {num}...',
         'analysis_progress': 'กำลังวิเคราะห์ข้อสอบ {current}/{total} ข้อ...',
         'analysis_complete': '🎉 **การวิเคราะห์เสร็จสมบูรณ์!**',
         
@@ -190,11 +189,11 @@ TRANSLATIONS = {
         'tab_summary': '📊 สรุปรายงาน & เกณฑ์ Bloom',
         'tab_details': '📝 รายละเอียดรายข้อ',
         'summary_title': '📊 สรุปภาพรวมคุณภาพข้อสอบ',
-        'good_questions': '✅ ข้อสอบคุณภาพดี',
-        'needs_improvement': '⚠️ ข้อสอบต้องปรับปรุง',
+        'good_questions': '&#9989; ข้อสอบคุณภาพดี',
+        'needs_improvement': '&#9888; ข้อสอบต้องปรับปรุง',
         'total_questions': '📝 จำนวนข้อสอบทั้งหมด',
-        'analyzed_success': '🤖 วิเคราะห์สำเร็จ',
-        'bloom_criteria_title': '💡 เกณฑ์การกระจายระดับความคิด (Bloom)',
+        'analyzed_success': '&#129302; วิเคราะห์สำเร็จ',
+        'bloom_criteria_title': '&#128161; เกณฑ์การกระจายระดับความคิด (Bloom)',
         'bloom_low': 'ระดับความคิดต่ำ (จำ/เข้าใจ)',
         'bloom_mid': 'ระดับความคิดกลาง (ใช้/วิเคราะห์)',
         'bloom_high': 'ระดับความคิดสูง (ประเมิน/สร้างสรรค์)',
@@ -212,36 +211,36 @@ TRANSLATIONS = {
         'reasoning': 'เหตุผลโดยย่อ',
         'suggestion': 'ข้อเสนอแนะ',
         'full_question': '**คำถามเต็ม:**',
-        'good': '✅ คุณภาพดี',
-        'improve': '❌ ต้องปรับปรุง/ล้มเหลว',
+        'good': '&#9989; คุณภาพดี',
+        'improve': '&#10060; ต้องปรับปรุง/ล้มเหลว',
         'difficulty': '⚖️ ความยาก:',
-        'correct_answer': '✅ คำตอบ:',
-        'curriculum_indicator': '**📚 ตัวชี้วัดหลักสูตร:**',
-        'bloom_reason': '**🧠 เหตุผลของระดับ Bloom/คุณภาพ:**',
+        'correct_answer': '&#9989; คำตอบ:',
+        'curriculum_indicator': '**&#128218; ตัวชี้วัดหลักสูตร:**',
+        'bloom_reason': '**&#129504; เหตุผลของระดับ Bloom/คุณภาพ:**',
         'answer_analysis_title': 'วิเคราะห์คำตอบและตัวลวง',
-        'correct_analysis': '**✅ วิเคราะห์คำตอบที่ถูก:**',
-        'distractor_analysis': '**❌ วิเคราะห์ตัวเลือกลวง (Distractors):**',
-        'why_good_distractor': '**💡 เหตุผลที่ตัวลวงดี:**',
+        'correct_analysis': '**&#9989; วิเคราะห์คำตอบที่ถูก:**',
+        'distractor_analysis': '**&#10060; วิเคราะห์ตัวเลือกลวง (Distractors):**',
+        'why_good_distractor': '**&#128161; เหตุผลที่ตัวลวงดี:**',
         'improvement_suggestion': '**🔧 ข้อเสนอแนะในการปรับปรุง:**',
         
         # Quota Warning
-        'quota_warning': '⚠️ **ข้อจำกัด Free Tier:** 20 requests/วัน หากเกินโควต้า กรุณารอ 24 ชั่วโมง หรืออัปเกรดแผนการใช้งาน',
+        'quota_warning': '&#9888; **ข้อจำกัด Free Tier:** 20 requests/วัน หากเกินโควต้า กรุณารอ 24 ชั่วโมง หรืออัปเกรดแผนการใช้งาน',
         
         # Language
         'language_btn': '🌐 English',
     },
     'en': {
         # Header
-        'app_title': '🚀 Exam Quality Analysis Tool',
-        'app_subtitle': '✨ Automatic exam analysis with <strong style="color: #667eea;">Gemini AI</strong> based on Core Curriculum and <strong style="color: #764ba2;">Bloom\'s Taxonomy</strong>',
+        'app_title': '&#128640; Exam Quality Analysis Tool',
+        'app_subtitle': '&#10024; Automatic exam analysis with <strong style="color: #667eea;">Gemini AI</strong> based on Core Curriculum and <strong style="color: #764ba2;">Bloom\'s Taxonomy</strong>',
         
         # Sidebar
         'sidebar_title': '⚙️ Settings & AI Status',
-        'ai_connected': '✅ AI Connected Successfully',
-        'ai_not_connected': '❌ API Key not found (GEMINI_API_KEY) - Please set in `.env`',
+        'ai_connected': '&#9989; AI Connected Successfully',
+        'ai_not_connected': '&#10060; API Key not found (GEMINI_API_KEY) - Please set in `.env`',
         'model_used': '**Model Used**',
         'batch_analysis': 'Batch Analysis',
-        'tips_title': '💡 Tips',
+        'tips_title': '&#128161; Tips',
         'tip_1': '- Use **PDF** or **TXT** files',
         'tip_2': '- Questions should have **numbers** (e.g., 1., 2.) and **choices** (e.g., A., B.)',
         'api_warning': 'Note: You must set GEMINI_API_KEY in .env file to use the analysis feature',
@@ -250,8 +249,8 @@ TRANSLATIONS = {
         'custom_prompt_title': '📝 Custom Prompt (Optional)',
         'custom_prompt_label': 'Enter custom prompt to use instead of Prompt.txt:',
         'custom_prompt_placeholder': 'Leave empty to use default Prompt.txt...\n\nOr enter your custom prompt here, e.g.:\n\nAnalyze this exam question according to Bloom\'s Taxonomy and rate its quality...',
-        'custom_prompt_active': '✨ Using Custom Prompt',
-        'custom_prompt_default': '📄 Using Default Prompt File',
+        'custom_prompt_active': '&#10024; Using Custom Prompt',
+        'custom_prompt_default': '&#128196; Using Default Prompt File',
         
         # Step 1
         'step1_title': '1️⃣ Upload Exam File (Batch Analysis)',
@@ -259,18 +258,18 @@ TRANSLATIONS = {
         'reading_file': '⏳ **Reading and extracting questions:**',
         'from_file': 'from file',
         'extracting': 'Extracting text...',
-        'no_questions_found': '❌ **No questions found** Please check the file format (no question numbers/choices or format too complex)',
-        'file_tip': '💡 **File preparation tip:** File should have clear **question numbers** (e.g., 1., 2., 3.) and **choices** (e.g., A., B., C., D.)',
-        'file_read_error': '❌ **Error reading file:**',
-        'extracted_questions': '✅ Extracted **{count} questions** from file `{filename}`',
+        'no_questions_found': '&#10060; **No questions found** Please check the file format (no question numbers/choices or format too complex)',
+        'file_tip': '&#128161; **File preparation tip:** File should have clear **question numbers** (e.g., 1., 2., 3.) and **choices** (e.g., A., B., C., D.)',
+        'file_read_error': '&#10060; **Error reading file:**',
+        'extracted_questions': '&#9989; Extracted **{count} questions** from file `{filename}`',
         
         # Step 2
-        'step2_title': '2️⃣ Start Analysis & Generate Report 🚀',
-        'start_analysis_btn': '🚀 **Click here to start AI analysis**',
+        'step2_title': '2️⃣ Start Analysis & Generate Report &#128640;',
+        'start_analysis_btn': '&#128640; **Click here to start AI analysis**',
         'api_not_ready': 'API Key not ready. Please check settings',
-        'starting_analysis': '🚀 **Starting AI analysis...**',
+        'starting_analysis': '&#128640; **Starting AI analysis...**',
         'preparing_analysis': '⏳ Preparing to analyze {count} questions using `{model}`',
-        'analyzing_question': '🤖 Analyzing question {num}...',
+        'analyzing_question': '&#129302; Analyzing question {num}...',
         'analysis_progress': 'Analyzing question {current}/{total}...',
         'analysis_complete': '🎉 **Analysis Complete!**',
         
@@ -279,11 +278,11 @@ TRANSLATIONS = {
         'tab_summary': '📊 Summary & Bloom Criteria',
         'tab_details': '📝 Question Details',
         'summary_title': '📊 Overall Exam Quality Summary',
-        'good_questions': '✅ Good Quality Questions',
-        'needs_improvement': '⚠️ Needs Improvement',
+        'good_questions': '&#9989; Good Quality Questions',
+        'needs_improvement': '&#9888; Needs Improvement',
         'total_questions': '📝 Total Questions',
-        'analyzed_success': '🤖 Successfully Analyzed',
-        'bloom_criteria_title': '💡 Bloom\'s Taxonomy Distribution Criteria',
+        'analyzed_success': '&#129302; Successfully Analyzed',
+        'bloom_criteria_title': '&#128161; Bloom\'s Taxonomy Distribution Criteria',
         'bloom_low': 'Lower Order (Remember/Understand)',
         'bloom_mid': 'Middle Order (Apply/Analyze)',
         'bloom_high': 'Higher Order (Evaluate/Create)',
@@ -301,20 +300,20 @@ TRANSLATIONS = {
         'reasoning': 'Brief Reasoning',
         'suggestion': 'Suggestion',
         'full_question': '**Full Question:**',
-        'good': '✅ Good',
-        'improve': '❌ Needs Improvement/Failed',
+        'good': '&#9989; Good',
+        'improve': '&#10060; Needs Improvement/Failed',
         'difficulty': '⚖️ Difficulty:',
-        'correct_answer': '✅ Answer:',
-        'curriculum_indicator': '**📚 Curriculum Indicator:**',
-        'bloom_reason': '**🧠 Bloom Level/Quality Reasoning:**',
+        'correct_answer': '&#9989; Answer:',
+        'curriculum_indicator': '**&#128218; Curriculum Indicator:**',
+        'bloom_reason': '**&#129504; Bloom Level/Quality Reasoning:**',
         'answer_analysis_title': 'Answer & Distractor Analysis',
-        'correct_analysis': '**✅ Correct Answer Analysis:**',
-        'distractor_analysis': '**❌ Distractor Analysis:**',
-        'why_good_distractor': '**💡 Why Good Distractors:**',
+        'correct_analysis': '**&#9989; Correct Answer Analysis:**',
+        'distractor_analysis': '**&#10060; Distractor Analysis:**',
+        'why_good_distractor': '**&#128161; Why Good Distractors:**',
         'improvement_suggestion': '**🔧 Improvement Suggestion:**',
         
         # Quota Warning
-        'quota_warning': '⚠️ **Free Tier Limit:** 20 requests/day. If exceeded, please wait 24 hours or upgrade your plan.',
+        'quota_warning': '&#9888; **Free Tier Limit:** 20 requests/day. If exceeded, please wait 24 hours or upgrade your plan.',
         
         # Language
         'language_btn': '🌐 ภาษาไทย',
@@ -522,7 +521,7 @@ def extract_questions(raw_text):
     is_suspiciously_low = len(valid_questions) == 0 or (len(valid_questions) < 3 and len(raw_text) > 500)
     
     if is_suspiciously_low and GEMINI_AVAILABLE:
-        st.toast("⚠️ รูปแบบไฟล์ซับซ้อน กำลังใช้ AI ช่วยแกะข้อสอบ...", icon="🤖")
+        st.toast("&#9888; รูปแบบไฟล์ซับซ้อน กำลังใช้ AI ช่วยแกะข้อสอบ...", icon="&#129302;")
         ai_extracted = extract_questions_with_ai(raw_text)
         if len(ai_extracted) > len(valid_questions):
              return ai_extracted
@@ -654,7 +653,7 @@ def analyze_with_gemini(question_text, question_id=1):
                     time.sleep(retry_delay)
                     continue
                 else:
-                    last_error_message = f"❌ Quota Exceeded: คุณใช้โควต้า API ครบแล้ว กรุณารอสักครู่หรือสร้าง API Key ใหม่"
+                    last_error_message = f"&#10060; Quota Exceeded: คุณใช้โควต้า API ครบแล้ว กรุณารอสักครู่หรือสร้าง API Key ใหม่"
                     break
             else:
                 last_error_message = f"ข้อผิดพลาด: {type(e).__name__}: {str(e)}"
@@ -1157,7 +1156,7 @@ def create_analysis_report(all_analysis, bloom_check):
     
     df_data = []
     for i, item in enumerate(all_analysis):
-        is_good = "✅ ดี" if item.get('is_good_question') is True and item.get('bloom_level') != "ไม่สามารถระบุได้" else "❌ ปรับปรุง/ล้มเหลว"
+        is_good = "&#9989; ดี" if item.get('is_good_question') is True and item.get('bloom_level') != "ไม่สามารถระบุได้" else "&#10060; ปรับปรุง/ล้มเหลว"
         df_data.append({
             'ข้อที่': i + 1,
             'คุณภาพข้อสอบ': is_good,
@@ -1222,27 +1221,27 @@ def run_app():
         st.header(t('sidebar_title'))
         
         # แสดงสถานะ API ของแต่ละ provider
-        st.markdown("**📡 สถานะ API:**")
+        st.markdown("**&#128225; สถานะ API:**")
         col_g, col_gr, col_or = st.columns(3)
         with col_g:
             if GEMINI_AVAILABLE:
-                st.success("Gemini ✅")
+                st.success("Gemini &#9989;")
             else:
-                st.error("Gemini ❌")
+                st.error("Gemini &#10060;")
         with col_gr:
             if GROQ_AVAILABLE:
-                st.success("Groq ✅")
+                st.success("Groq &#9989;")
             else:
-                st.error("Groq ❌")
+                st.error("Groq &#10060;")
         with col_or:
             if OPENROUTER_AVAILABLE:
-                st.success("OpenRouter ✅")
+                st.success("OpenRouter &#9989;")
             else:
-                st.error("OpenRouter ❌")
+                st.error("OpenRouter &#10060;")
         
-        # 🏢 Provider Selector
+        # &#127970; Provider Selector
         st.markdown("---")
-        st.subheader("🏢 เลือก AI Provider")
+        st.subheader("&#127970; เลือก AI Provider")
         
         provider_options = list(AI_PROVIDERS.keys())
         current_provider_idx = provider_options.index(st.session_state.selected_provider) if st.session_state.selected_provider in provider_options else 0
@@ -1262,8 +1261,8 @@ def run_app():
             st.session_state.selected_model = first_model
             st.session_state.analysis_results = None
         
-        # 🤖 Model Selector (changes based on provider)
-        st.subheader("🤖 เลือกโมเดล")
+        # &#129302; Model Selector (changes based on provider)
+        st.subheader("&#129302; เลือกโมเดล")
         
         model_options = list(AI_PROVIDERS[st.session_state.selected_provider]["models"].keys())
         current_model_idx = model_options.index(st.session_state.selected_model) if st.session_state.selected_model in model_options else 0
@@ -1281,7 +1280,7 @@ def run_app():
             st.session_state.analysis_results = None
         
         current_model_id = AI_PROVIDERS[st.session_state.selected_provider]["models"].get(st.session_state.selected_model, "unknown")
-        st.info(f"🎯 `{current_model_id}`")
+        st.info(f"&#127919; `{current_model_id}`")
         
         st.markdown("---")
         st.subheader(t('tips_title'))
@@ -1401,7 +1400,7 @@ def run_app():
         )
         
         if not provider_available:
-            st.error(f"❌ ไม่พบ API Key สำหรับ {provider} - กรุณาตั้งค่าใน .env")
+            st.error(f"&#10060; ไม่พบ API Key สำหรับ {provider} - กรุณาตั้งค่าใน .env")
             return
             
         question_texts = st.session_state.question_texts
@@ -1472,7 +1471,7 @@ def run_app():
         tab_summary, tab_details, tab_export = st.tabs([
             t('tab_summary'), 
             t('tab_details'),
-            "📥 Export รายงาน"
+            "&#128229; Export รายงาน"
         ])
 
         # --- Tab: Summary ---
@@ -1511,7 +1510,7 @@ def run_app():
             if bloom_check['pass']:
                 st.success(f"**🎉 {bloom_stats['ผลลัพธ์โดยรวม']}**")
             else:
-                st.warning(f"**❌ {bloom_stats['ผลลัพธ์โดยรวม']}**")
+                st.warning(f"**&#10060; {bloom_stats['ผลลัพธ์โดยรวม']}**")
                 
             col_b1, col_b2, col_b3 = st.columns(3)
             col_b1.metric(t('bloom_low'), bloom_stats["ระดับความคิดต่ำ (จำ/เข้าใจ) (เป้าหมาย ≤ 40%)"], delta=f"{t('target')} ≤ 40%")
@@ -1634,7 +1633,7 @@ def run_app():
                         st.markdown(
                             f"""
                             <div style='background-color:{bloom_color}; color:{text_color}; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 10px;'>
-                                <strong>💡 ระดับ Bloom:</strong> {item.get('bloom_level', 'N/A')}
+                                <strong>&#128161; ระดับ Bloom:</strong> {item.get('bloom_level', 'N/A')}
                             </div>
                             """, unsafe_allow_html=True
                         )
@@ -1680,24 +1679,24 @@ def run_app():
                     st.warning(f"{t('improvement_suggestion')} {item.get('improvement_suggestion', 'N/A')}")
                     
                     # ปุ่มปรับปรุงข้อสอบด้วย AI
-                    if st.button(f"✨ ปรับปรุงข้อสอบข้อที่ {q_index+1}", key=f"improve_{q_index}"):
+                    if st.button(f"&#10024; ปรับปรุงข้อสอบข้อที่ {q_index+1}", key=f"improve_{q_index}"):
                         with st.spinner("กำลังปรับปรุงข้อสอบ..."):
                             improved, err = improve_question_with_ai(
                                 item.get('question_text', ''),
                                 item.get('improvement_suggestion', '')
                             )
                             if improved:
-                                st.success("✅ ข้อสอบที่ปรับปรุงแล้ว:")
+                                st.success("&#9989; ข้อสอบที่ปรับปรุงแล้ว:")
                                 st.markdown(improved)
                             else:
-                                st.error(f"❌ เกิดข้อผิดพลาด: {err}")
+                                st.error(f"&#10060; เกิดข้อผิดพลาด: {err}")
                 
                 st.divider() 
 
 
         # --- Tab: Export ---
         with tab_export:
-            st.subheader("📥 ดาวน์โหลดรายงานผลวิเคราะห์")
+            st.subheader("&#128229; ดาวน์โหลดรายงานผลวิเคราะห์")
             
             col_excel, col_info = st.columns([1, 2])
             
@@ -1725,15 +1724,15 @@ def run_app():
 
     # --- Section: Generate New Exam ---
     st.divider()
-    st.header("🆕 สร้างข้อสอบใหม่ด้วย AI")
+    st.header("&#127381; สร้างข้อสอบใหม่ด้วย AI")
     
-    with st.expander("💡 คลิกเพื่อสร้างข้อสอบใหม่", expanded=False):
+    with st.expander("&#128161; คลิกเพื่อสร้างข้อสอบใหม่", expanded=False):
         col_gen1, col_gen2 = st.columns(2)
         
         with col_gen1:
-            subject = st.text_input("📚 วิชา/หัวข้อ", placeholder="เช่น คณิตศาสตร์ ม.3, วิทยาศาสตร์ ป.6")
+            subject = st.text_input("&#128218; วิชา/หัวข้อ", placeholder="เช่น คณิตศาสตร์ ม.3, วิทยาศาสตร์ ป.6")
             bloom_level = st.selectbox(
-                "🧠 ระดับ Bloom's Taxonomy",
+                "&#129504; ระดับ Bloom's Taxonomy",
                 ["จำ (Remember)", "เข้าใจ (Understand)", "ประยุกต์ใช้ (Apply)", 
                  "วิเคราะห์ (Analyze)", "ประเมินค่า (Evaluate)", "สร้างสรรค์ (Create)"]
             )
@@ -1742,14 +1741,14 @@ def run_app():
             num_questions = st.number_input("📝 จำนวนข้อ", min_value=1, max_value=20, value=5)
             difficulty = st.selectbox("📊 ระดับความยาก", ["ง่าย", "ปานกลาง", "ยาก"])
         
-        if st.button("🚀 สร้างข้อสอบ", type="primary", use_container_width=True):
+        if st.button("&#128640; สร้างข้อสอบ", type="primary", use_container_width=True):
             if not subject:
                 st.warning("กรุณาระบุวิชา/หัวข้อ")
             else:
                 with st.spinner(f"กำลังสร้างข้อสอบ {num_questions} ข้อ..."):
                     exams, err = generate_exam_with_ai(subject, bloom_level, num_questions, difficulty)
                     if exams:
-                        st.success(f"✅ สร้างข้อสอบสำเร็จ {len(exams)} ข้อ!")
+                        st.success(f"&#9989; สร้างข้อสอบสำเร็จ {len(exams)} ข้อ!")
                         for i, exam in enumerate(exams, 1):
                             with st.expander(f"ข้อ {i}: {exam.get('question', 'N/A')[:50]}..."):
                                 st.markdown(f"**คำถาม:** {exam.get('question', 'N/A')}")
@@ -1761,11 +1760,11 @@ def run_app():
                                 st.markdown(f"**เฉลย:** {exam.get('answer', 'N/A')}")
                                 st.markdown(f"**คำอธิบาย:** {exam.get('explanation', 'N/A')}")
                     else:
-                        st.error(f"❌ เกิดข้อผิดพลาด: {err}")
+                        st.error(f"&#10060; เกิดข้อผิดพลาด: {err}")
 
     # --- Section: History ---
     st.divider()
-    st.header("📜 ประวัติการวิเคราะห์")
+    st.header("&#128220; ประวัติการวิเคราะห์")
     
     history = load_analysis_history()
     if history:
