@@ -1317,27 +1317,35 @@ def run_app():
     # --- Step 1: Upload ---
     
     # --- Custom Prompt (Main) ---
+    # --- Custom Prompt (Main) ---
     st.markdown("---")
-    with st.expander(t('custom_prompt_title'), expanded=False):
-        st.markdown(f"**{t('custom_prompt_label')}**")
-        custom_prompt_input = st.text_area(
-            "Custom Prompt",
-            value=st.session_state.custom_prompt,
-            height=150,
-            placeholder=t('custom_prompt_placeholder'),
-            key='custom_prompt_main',
-            label_visibility="collapsed"
-        )
-        if custom_prompt_input != st.session_state.custom_prompt:
-            st.session_state.custom_prompt = custom_prompt_input
-            st.session_state.analysis_results = None
-        
-        col_status1, col_status2 = st.columns([1, 1])
-        with col_status1:
-            if st.session_state.custom_prompt.strip():
-                st.success(t('custom_prompt_active'))
-            else:
-                st.info(t('custom_prompt_default'))
+    
+    with st.container(border=True):
+        col_c1, col_c2 = st.columns([3, 1])
+        with col_c1:
+            st.markdown("### 🛠️ ปรับแต่งคำสั่ง AI (Custom Prompt)")
+            st.caption("กำหนดคำสั่งให้ AI วิเคราะห์ตามแบบที่คุณต้องการ")
+        with col_c2:
+            use_custom = st.toggle("เปิดใช้งาน", value=bool(st.session_state.custom_prompt.strip()), key="toggle_custom_prompt")
+
+        if use_custom:
+            custom_prompt_input = st.text_area(
+                "ใส่ Prompt ของคุณที่นี่:",
+                value=st.session_state.custom_prompt,
+                height=150,
+                placeholder=t('custom_prompt_placeholder'),
+                key='custom_prompt_main',
+            )
+            if custom_prompt_input != st.session_state.custom_prompt:
+                st.session_state.custom_prompt = custom_prompt_input
+                st.session_state.analysis_results = None # Reset
+            
+            st.info("💡 ข้อแนะนำ: เขียนคำสั่งให้ชัดเจน เช่น 'วิเคราะห์ข้อสอบนี้ เน้นเรื่อง...'")
+        else:
+            if st.session_state.custom_prompt: # If toggled off but had value
+                st.session_state.custom_prompt = ""
+                st.rerun()
+            st.success("✅ กำลังใช้คำสั่งมาตรฐาน (Default Prompt)")
 
     st.markdown("---")
     st.header(t('step1_title'))
