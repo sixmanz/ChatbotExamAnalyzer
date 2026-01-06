@@ -1222,22 +1222,20 @@ def run_app():
         
         # แสดงสถานะ API ของแต่ละ provider
         st.markdown("**&#128225; สถานะ API:**")
-        col_g, col_gr, col_or = st.columns(3)
-        with col_g:
-            if GEMINI_AVAILABLE:
-                st.success("Gemini &#9989;")
-            else:
-                st.error("Gemini &#10060;")
-        with col_gr:
-            if GROQ_AVAILABLE:
-                st.success("Groq &#9989;")
-            else:
-                st.error("Groq &#10060;")
-        with col_or:
-            if OPENROUTER_AVAILABLE:
-                st.success("OpenRouter &#9989;")
-            else:
-                st.error("OpenRouter &#10060;")
+        if GEMINI_AVAILABLE:
+            st.success("Gemini: พร้อมใช้งาน &#9989;")
+        else:
+            st.error("Gemini: ไม่พร้อม &#10060;")
+            
+        if GROQ_AVAILABLE:
+            st.success("Groq: พร้อมใช้งาน &#9989;")
+        else:
+            st.error("Groq: ไม่พร้อม &#10060;")
+            
+        if OPENROUTER_AVAILABLE:
+            st.success("OpenRouter: พร้อมใช้งาน &#9989;")
+        else:
+            st.error("OpenRouter: ไม่พร้อม &#10060;")
         
         # &#127970; Provider Selector
         st.markdown("---")
