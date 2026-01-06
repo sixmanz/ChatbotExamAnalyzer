@@ -13,23 +13,90 @@ import google.generativeai as genai
 from google.generativeai import types
 from google.generativeai.types import GenerationConfig 
 from typing import Dict, Any, Tuple
-import altair as alt 
+import altair as alt
+from shadcn_style import SHADCN_CSS
+from datetime import datetime
+
+# Export Libraries
+try:
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    EXCEL_AVAILABLE = True
+except ImportError:
+    EXCEL_AVAILABLE = False
+
+try:
+    from fpdf import FPDF
+    PDF_AVAILABLE = True
+except ImportError:
+    PDF_AVAILABLE = False
+
+try:
+    from docx import Document as DocxDocument
+    DOCX_AVAILABLE = True
+except ImportError:
+    DOCX_AVAILABLE = False
 
 
 # --- 1. การตั้งค่าและโหลด Environment ---
 load_dotenv()
+
+# API Keys for all providers
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '').strip()
+GROQ_API_KEY = os.getenv('GROQ_API_KEY', '').strip()
+OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY', '').strip()
 
-# โมเดลที่ใช้ 
-GEMINI_BATCH_MODEL_NAME = "gemini-flash-latest" 
+# 🚀 Multi-Provider AI Configuration
+AI_PROVIDERS = {
+    "Gemini (Google)": {
+        "models": {
+            "Gemini 2.0 Flash (แนะนำ)": "gemini-2.0-flash",
+            "Gemini 1.5 Flash (เร็ว)": "gemini-1.5-flash-latest",
+            "Gemini 1.5 Pro (แม่นยำ)": "gemini-1.5-pro-latest",
+        },
+        "api_key": GEMINI_API_KEY,
+    },
+    "Groq (ฟรี+เร็วมาก)": {
+        "models": {
+            "Llama 3.3 70B (แนะนำ)": "llama-3.3-70b-versatile",
+            "Llama 3.1 8B (เร็ว)": "llama-3.1-8b-instant",
+            "Mixtral 8x7B": "mixtral-8x7b-32768",
+        },
+        "api_key": GROQ_API_KEY,
+    },
+    "OpenRouter (หลายโมเดลฟรี)": {
+        "models": {
+            "Llama 3.2 3B (ฟรี)": "meta-llama/llama-3.2-3b-instruct:free",
+            "Mistral 7B (ฟรี)": "mistralai/mistral-7b-instruct:free",
+            "Gemma 2 9B (ฟรี)": "google/gemma-2-9b-it:free",
+        },
+        "api_key": OPENROUTER_API_KEY,
+    },
+}
 
+DEFAULT_PROVIDER = "Gemini (Google)"
+DEFAULT_MODEL_NAME = "Gemini 2.0 Flash (แนะนำ)"
+
+# Legacy support - keep AVAILABLE_AI_MODELS for compatibility
+AVAILABLE_AI_MODELS = AI_PROVIDERS[DEFAULT_PROVIDER]["models"]
+
+# Check API availability for each provider
 GEMINI_AVAILABLE = False
+GROQ_AVAILABLE = False
+OPENROUTER_AVAILABLE = False
+
 try:
     if GEMINI_API_KEY and len(GEMINI_API_KEY) > 30:
         genai.configure(api_key=GEMINI_API_KEY)
         GEMINI_AVAILABLE = True
 except Exception:
     GEMINI_AVAILABLE = False
+
+if GROQ_API_KEY and len(GROQ_API_KEY) > 20:
+    GROQ_AVAILABLE = True
+    
+if OPENROUTER_API_KEY and len(OPENROUTER_API_KEY) > 20:
+    OPENROUTER_AVAILABLE = True
 
 
 # Initialize session states
@@ -40,9 +107,13 @@ if 'last_uploaded_file_name' not in st.session_state:
 if 'question_texts' not in st.session_state:
     st.session_state.question_texts = None
 if 'language' not in st.session_state:
-    st.session_state.language = 'th'  # Default to Thai
+    st.session_state.language = 'th'
 if 'custom_prompt' not in st.session_state:
-    st.session_state.custom_prompt = ""  # Custom prompt (empty = use default)
+    st.session_state.custom_prompt = ""
+if 'selected_provider' not in st.session_state:
+    st.session_state.selected_provider = DEFAULT_PROVIDER
+if 'selected_model' not in st.session_state:
+    st.session_state.selected_model = DEFAULT_MODEL_NAME
 
 # --- Translation Dictionary ---
 TRANSLATIONS = {
@@ -458,8 +529,12 @@ def analyze_with_gemini(question_text, question_id=1):
         system_instruction = SYSTEM_INSTRUCTION_PROMPT
         prompt_template = FEW_SHOT_PROMPT_TEMPLATE
 
+    # ใช้โมเดลที่ผู้ใช้เลือก
+    selected_model_name = st.session_state.get('selected_model', DEFAULT_MODEL_NAME)
+    model_id = AVAILABLE_AI_MODELS.get(selected_model_name, "gemini-2.0-flash")
+    
     model = genai.GenerativeModel(
-        GEMINI_BATCH_MODEL_NAME, 
+        model_id, 
         system_instruction=system_instruction
     )
     
@@ -526,44 +601,8 @@ def analyze_with_gemini(question_text, question_id=1):
             # โหลด JSON
             analysis = json.loads(cleaned_json)
             
-            # Data sanitation and Key validation
-            required_keys = [
-                "bloom_level", "reasoning", "difficulty", "curriculum_standard",
-                "correct_option", "correct_option_analysis", "distractor_analysis",
-                "why_good_distractor", "is_good_question", "improvement_suggestion"
-            ]
-            
-            def safe_str(val): return str(val).strip() if val is not None else "ไม่ระบุ"
-            def safe_bool(val):
-                if isinstance(val, str): 
-                    return val.lower().strip() == 'true'
-                if val in (True, False): return val
-                return False
-
-            final_analysis = {}
-            missing_keys = []
-            for key in required_keys:
-                raw_val = analysis.get(key)
-                if key == "is_good_question":
-                    final_analysis[key] = safe_bool(raw_val)
-                else:
-                    final_analysis[key] = safe_str(raw_val if raw_val is not None else "ไม่ระบุ")
-                
-                if key not in analysis:
-                    missing_keys.append(key)
-            
-            # ถ้ามี key ที่หายไป ให้ใส่ค่า default แทนการ raise error
-            if missing_keys:
-                for key in missing_keys:
-                    if key == "is_good_question":
-                        final_analysis[key] = False
-                    elif key == "improvement_suggestion":
-                        final_analysis[key] = "ไม่มีข้อเสนอแนะ"
-                    elif key == "why_good_distractor":
-                        final_analysis[key] = "ไม่ระบุ"
-                    else:
-                        final_analysis[key] = "ไม่ระบุ"
-
+            # Data sanitation via shared function
+            final_analysis = sanitize_analysis(analysis)
             return final_analysis
 
         except (json.JSONDecodeError, ValueError, KeyError) as e:
@@ -607,6 +646,410 @@ def analyze_with_gemini(question_text, question_id=1):
         "is_good_question": False, 
         "improvement_suggestion": f"**เกิดข้อผิดพลาดในการวิเคราะห์**: {last_error_message}"
     }
+
+
+def analyze_with_groq(question_text, question_id=1):
+    """วิเคราะห์ข้อสอบผ่าน Groq API (Llama, Mixtral) [Robust]"""
+    from groq import Groq
+    
+    if not GROQ_AVAILABLE:
+        return create_error_response("ไม่พบ GROQ_API_KEY")
+    
+    client = Groq(api_key=GROQ_API_KEY)
+    
+    # Get selected model
+    selected_model = st.session_state.get('selected_model', 'Llama 3.3 70B (แนะนำ)')
+    model_id = AI_PROVIDERS["Groq (ฟรี+เร็วมาก)"]["models"].get(selected_model, "llama-3.3-70b-versatile")
+    
+    # Build prompt
+    custom_prompt = st.session_state.get('custom_prompt', '').strip()
+    system_prompt = custom_prompt if custom_prompt else SYSTEM_INSTRUCTION_PROMPT
+    
+    user_message = f"""คำถามข้อที่ {question_id}:
+{question_text}
+
+วิเคราะห์และตอบเป็น JSON ที่มี keys: bloom_level, reasoning, difficulty, curriculum_standard, correct_option, correct_option_analysis, distractor_analysis, why_good_distractor, is_good_question (boolean), improvement_suggestion"""
+    
+    max_retries = 3
+    last_error = ""
+    
+    for attempt in range(max_retries):
+        if attempt > 0:
+            time.sleep(attempt * 2)
+            
+        try:
+            response = client.chat.completions.create(
+                model=model_id,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message}
+                ],
+                temperature=0.2,
+                max_tokens=2000,
+                response_format={"type": "json_object"}
+            )
+            
+            raw_text = response.choices[0].message.content
+            analysis = json.loads(raw_text)
+            return sanitize_analysis(analysis)
+            
+        except Exception as e:
+            error_str = str(e).lower()
+            if "429" in error_str or "rate limit" in error_str:
+                last_error = f"Rate Limit (รอ {attempt*2}s)"
+                time.sleep(5) # Extra wait for rate limit
+            else:
+                last_error = str(e)
+            
+    return create_error_response(f"Groq Error (Max Retries): {last_error}")
+
+
+
+def analyze_with_openrouter(question_text, question_id=1):
+    """วิเคราะห์ข้อสอบผ่าน OpenRouter API [Robust]"""
+    import openai
+    
+    if not OPENROUTER_AVAILABLE:
+        return create_error_response("ไม่พบ OPENROUTER_API_KEY")
+    
+    client = openai.OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=OPENROUTER_API_KEY
+    )
+    
+    # Get selected model
+    selected_model = st.session_state.get('selected_model', 'Llama 3.2 3B (ฟรี)')
+    model_id = AI_PROVIDERS["OpenRouter (หลายโมเดลฟรี)"]["models"].get(selected_model, "meta-llama/llama-3.2-3b-instruct:free")
+    
+    # Build prompt  
+    custom_prompt = st.session_state.get('custom_prompt', '').strip()
+    system_prompt = custom_prompt if custom_prompt else SYSTEM_INSTRUCTION_PROMPT
+    
+    user_message = f"""คำถามข้อที่ {question_id}:
+{question_text}
+
+วิเคราะห์และตอบเป็น JSON ที่มี keys: bloom_level, reasoning, difficulty, curriculum_standard, correct_option, correct_option_analysis, distractor_analysis, why_good_distractor, is_good_question (boolean), improvement_suggestion"""
+    
+    max_retries = 3
+    last_error = ""
+    
+    for attempt in range(max_retries):
+        if attempt > 0:
+            time.sleep(attempt * 2)
+            
+        try:
+            response = client.chat.completions.create(
+                model=model_id,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message}
+                ],
+                temperature=0.2,
+                max_tokens=2000
+            )
+            
+            raw_text = response.choices[0].message.content
+            # Clean JSON from markdown code blocks
+            cleaned = re.sub(r'^```(?:json)?\s*|```$', '', raw_text, flags=re.MULTILINE | re.DOTALL).strip()
+            start_brace = cleaned.find('{')
+            end_brace = cleaned.rfind('}')
+            if start_brace != -1 and end_brace > start_brace:
+                cleaned = cleaned[start_brace:end_brace+1]
+            analysis = json.loads(cleaned)
+            return sanitize_analysis(analysis)
+            
+        except Exception as e:
+            last_error = str(e)
+            if "429" in str(e):
+                 time.sleep(5)
+
+    return create_error_response(f"OpenRouter Error: {last_error}")
+
+
+
+def create_error_response(error_message):
+    """สร้าง response เมื่อเกิดข้อผิดพลาด"""
+    return {
+        "bloom_level": "ไม่สามารถระบุได้", "reasoning": "AI วิเคราะห์ล้มเหลว",
+        "difficulty": "ไม่สามารถประเมินได้", "curriculum_standard": "ไม่สามารถระบุได้",
+        "correct_option": "ไม่ระบุ", "correct_option_analysis": "ไม่ระบุ",
+        "distractor_analysis": "ไม่ระบุ", "why_good_distractor": "ไม่ระบุ",
+        "is_good_question": False, 
+        "improvement_suggestion": f"**เกิดข้อผิดพลาด**: {error_message}"
+    }
+
+
+def sanitize_analysis(analysis):
+    """ทำความสะอาดและตรวจสอบผลลัพธ์จาก AI (Robust)"""
+    required_keys = [
+        "bloom_level", "reasoning", "difficulty", "curriculum_standard",
+        "correct_option", "correct_option_analysis", "distractor_analysis",
+        "why_good_distractor", "is_good_question", "improvement_suggestion"
+    ]
+    
+    result = {}
+    missing_keys = []
+    
+    for key in required_keys:
+        val = analysis.get(key)
+        
+        # Robust Boolean Conversion
+        if key == "is_good_question":
+            if isinstance(val, bool):
+                result[key] = val
+            elif isinstance(val, str):
+                result[key] = val.strip().lower() in ['true', 'yes', '1', 'correct', 'จริง', 'ใช่']
+            else:
+                result[key] = False
+        else:
+            # Robust String Conversion
+            result[key] = str(val).strip() if val not in [None, "", "null"] else "ไม่ระบุ"
+            
+        if key not in analysis:
+            missing_keys.append(key)
+
+    # Specific Default Values for missing keys
+    if "improvement_suggestion" not in result or result["improvement_suggestion"] == "ไม่ระบุ":
+        result["improvement_suggestion"] = "ไม่มีข้อเสนอแนะเพิ่มเติม"
+
+    return result
+
+
+
+def analyze_question(question_text, question_id=1):
+    """Wrapper function - เลือก provider ตามที่ผู้ใช้เลือก"""
+    provider = st.session_state.get('selected_provider', DEFAULT_PROVIDER)
+    
+    if provider == "Gemini (Google)":
+        return analyze_with_gemini(question_text, question_id)
+    elif provider == "Groq (ฟรี+เร็วมาก)":
+        return analyze_with_groq(question_text, question_id)
+    elif provider == "OpenRouter (หลายโมเดลฟรี)":
+        return analyze_with_openrouter(question_text, question_id)
+    else:
+        return analyze_with_gemini(question_text, question_id)
+
+
+# ===== EXPORT FUNCTIONS =====
+def export_to_excel(analysis_results, filename="exam_analysis.xlsx"):
+    """Export ผลวิเคราะห์เป็น Excel"""
+    if not EXCEL_AVAILABLE:
+        return None
+    
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "ผลวิเคราะห์ข้อสอบ"
+    
+    # Header styling
+    header_fill = PatternFill(start_color="18181B", end_color="18181B", fill_type="solid")
+    header_font = Font(color="FFFFFF", bold=True)
+    
+    headers = ["ข้อที่", "ระดับ Bloom", "ความยาก", "คุณภาพ", "มาตรฐาน", "คำตอบ", "ข้อเสนอแนะ"]
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center")
+    
+    # Data rows
+    for idx, item in enumerate(analysis_results, 1):
+        ws.cell(row=idx+1, column=1, value=idx)
+        ws.cell(row=idx+1, column=2, value=item.get('bloom_level', 'N/A'))
+        ws.cell(row=idx+1, column=3, value=item.get('difficulty', 'N/A'))
+        ws.cell(row=idx+1, column=4, value="ดี" if item.get('is_good_question') else "ต้องปรับปรุง")
+        ws.cell(row=idx+1, column=5, value=item.get('curriculum_standard', 'N/A'))
+        ws.cell(row=idx+1, column=6, value=item.get('correct_option', 'N/A'))
+        ws.cell(row=idx+1, column=7, value=item.get('improvement_suggestion', 'N/A'))
+    
+    # Auto-adjust column widths
+    for col in ws.columns:
+        max_length = max(len(str(cell.value or "")) for cell in col)
+        ws.column_dimensions[col[0].column_letter].width = min(max_length + 2, 50)
+    
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output
+
+
+def extract_text_from_docx(file):
+    """สกัดข้อความจากไฟล์ DOCX (อ่านพารากราฟและตาราง)"""
+    if not DOCX_AVAILABLE:
+        return None
+    try:
+        doc = Document(file)
+        full_text = []
+        
+        # อ่าน paragraphs
+        for para in doc.paragraphs:
+            if para.text.strip():
+                full_text.append(para.text)
+                
+        # อ่าน tables (มักใช้ในข้อสอบ)
+        for table in doc.tables:
+            for row in table.rows:
+                row_text = []
+                for cell in row.cells:
+                    if cell.text.strip():
+                        row_text.append(cell.text.strip())
+                if row_text:
+                    full_text.append(" ".join(row_text))
+                    
+        return "\n".join(full_text)
+    except Exception as e:
+        return None
+
+
+
+def generate_exam_with_ai(subject, bloom_level, num_questions, difficulty="ปานกลาง"):
+    """สร้างข้อสอบใหม่ด้วย AI"""
+    provider = st.session_state.get('selected_provider', DEFAULT_PROVIDER)
+    
+    prompt = f"""สร้างข้อสอบปรนัย 4 ตัวเลือก จำนวน {num_questions} ข้อ
+วิชา: {subject}
+ระดับ Bloom's Taxonomy: {bloom_level}
+ระดับความยาก: {difficulty}
+
+สำหรับแต่ละข้อ ให้มี:
+1. คำถามที่ชัดเจน
+2. ตัวเลือก ก. ข. ค. ง.
+3. เฉลย
+4. คำอธิบายคำตอบ
+
+ตอบเป็น JSON array ที่มี keys: question, options (array), answer, explanation"""
+    
+    try:
+        if provider == "Gemini (Google)" and GEMINI_AVAILABLE:
+            model = genai.GenerativeModel("gemini-2.0-flash")
+            response = model.generate_content(prompt)
+            raw_text = response.text
+        elif provider == "Groq (ฟรี+เร็วมาก)" and GROQ_AVAILABLE:
+            from groq import Groq
+            client = Groq(api_key=GROQ_API_KEY)
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7
+            )
+            raw_text = response.choices[0].message.content
+        elif provider == "OpenRouter (หลายโมเดลฟรี)" and OPENROUTER_AVAILABLE:
+            import openai
+            client = openai.OpenAI(base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_API_KEY)
+            response = client.chat.completions.create(
+                model="meta-llama/llama-3.2-3b-instruct:free",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7
+            )
+            raw_text = response.choices[0].message.content
+        else:
+            return None, "ไม่มี API Key ที่พร้อมใช้งาน"
+        
+        # Parse JSON from response
+        cleaned = re.sub(r'^```(?:json)?\s*|```$', '', raw_text, flags=re.MULTILINE | re.DOTALL).strip()
+        start = cleaned.find('[')
+        end = cleaned.rfind(']') + 1
+        if start != -1 and end > start:
+            exams = json.loads(cleaned[start:end])
+            return exams, None
+        return None, "ไม่สามารถ parse JSON ได้"
+    except Exception as e:
+        return None, str(e)
+
+
+def improve_question_with_ai(question_text, suggestion):
+    """ปรับปรุงข้อสอบตามคำแนะนำ AI"""
+    provider = st.session_state.get('selected_provider', DEFAULT_PROVIDER)
+    
+    prompt = f"""ข้อสอบเดิม:
+{question_text}
+
+ข้อเสนอแนะในการปรับปรุง:
+{suggestion}
+
+กรุณาเขียนข้อสอบใหม่ที่ปรับปรุงตามข้อเสนอแนะ โดยยังคงเนื้อหาหลักไว้ แต่แก้ไขจุดบกพร่อง
+ตอบเฉพาะข้อสอบที่ปรับปรุงแล้วเท่านั้น ในรูปแบบ:
+- คำถาม
+- ตัวเลือก ก. ข. ค. ง.
+- (เฉลย: ตัวเลือกที่ถูกต้อง)"""
+    
+    try:
+        if provider == "Gemini (Google)" and GEMINI_AVAILABLE:
+            model = genai.GenerativeModel("gemini-2.0-flash")
+            response = model.generate_content(prompt)
+            return response.text, None
+        elif provider == "Groq (ฟรี+เร็วมาก)" and GROQ_AVAILABLE:
+            from groq import Groq
+            client = Groq(api_key=GROQ_API_KEY)
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.5
+            )
+            return response.choices[0].message.content, None
+        elif provider == "OpenRouter (หลายโมเดลฟรี)" and OPENROUTER_AVAILABLE:
+            import openai
+            client = openai.OpenAI(base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_API_KEY)
+            response = client.chat.completions.create(
+                model="meta-llama/llama-3.2-3b-instruct:free",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.5
+            )
+            return response.choices[0].message.content, None
+        return None, "ไม่มี API Key ที่พร้อมใช้งาน"
+    except Exception as e:
+        return None, str(e)
+
+
+def save_analysis_history(filename, results, summary):
+    """บันทึกประวัติการวิเคราะห์"""
+    history_file = "analysis_history.json"
+    history = []
+    
+    if os.path.exists(history_file):
+        try:
+            with open(history_file, 'r', encoding='utf-8') as f:
+                history = json.load(f)
+        except:
+            history = []
+    
+    entry = {
+        "timestamp": datetime.now().isoformat(),
+        "filename": filename,
+        "total_questions": len(results),
+        "good_questions": sum(1 for r in results if r.get('is_good_question')),
+        "summary": summary
+    }
+    history.insert(0, entry)  # Add to beginning
+    history = history[:20]  # Keep only last 20
+    
+    with open(history_file, 'w', encoding='utf-8') as f:
+        json.dump(history, f, ensure_ascii=False, indent=2)
+
+
+def load_analysis_history():
+    """โหลดประวัติการวิเคราะห์"""
+    history_file = "analysis_history.json"
+    if os.path.exists(history_file):
+        try:
+            with open(history_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except:
+            return []
+    return []
+
+
+def extract_text_from_docx(file):
+    """สกัดข้อความจากไฟล์ DOCX"""
+    if not DOCX_AVAILABLE:
+        return None
+    try:
+        doc = DocxDocument(file)
+        full_text = []
+        for para in doc.paragraphs:
+            full_text.append(para.text)
+        return '\n'.join(full_text)
+    except Exception as e:
+        return None
 
 
 def check_bloom_criteria(analysis_results):
@@ -716,374 +1159,8 @@ def run_app():
         menu_items=None
     )
     
-    # 🎨 Custom CSS Theme - Premium Polished Design
-    st.markdown("""
-    <style>
-    /* Import Google Fonts */
-    @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap');
-    
-    /* ===== GLOBAL STYLES ===== */
-    .stApp {
-        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-        font-family: 'Prompt', sans-serif;
-        min-height: 100vh;
-    }
-    
-    /* Hide Streamlit branding */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    
-    /* ===== SIDEBAR STYLES ===== */
-    [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-        border-right: 1px solid #e2e8f0;
-    }
-    
-    [data-testid="stSidebar"] .stMarkdown {
-        color: #475569;
-    }
-    
-    [data-testid="stSidebar"] h1, 
-    [data-testid="stSidebar"] h2, 
-    [data-testid="stSidebar"] h3 {
-        color: #1e293b !important;
-        font-weight: 600;
-    }
-    
-    /* ===== MAIN CONTENT STYLES ===== */
-    .main .block-container {
-        padding: 2rem 1rem;
-        max-width: 1100px;
-    }
-    
-    /* Main content area */
-    .main > div {
-        background: #ffffff;
-        border-radius: 20px;
-        padding: 2rem;
-        margin: 1rem;
-    }
-    
-    /* Headers */
-    h1 {
-        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        font-weight: 700 !important;
-        font-size: 2.2rem !important;
-        text-align: center;
-        padding: 0.5rem 0;
-    }
-    
-    h2 {
-        color: #1e293b !important;
-        font-weight: 600 !important;
-        font-size: 1.4rem !important;
-        padding-bottom: 0.75rem;
-        margin-top: 1.5rem;
-        border-bottom: 2px solid;
-        border-image: linear-gradient(90deg, #6366f1, #a855f7, #e2e8f0) 1;
-    }
-    
-    h3 {
-        color: #334155 !important;
-        font-weight: 600 !important;
-    }
-    
-    /* Regular text */
-    .stMarkdown, p, span, label {
-        color: #475569 !important;
-    }
-    
-    /* ===== CONTAINER & CARDS ===== */
-    div[data-testid="stVerticalBlockBorderWrapper"] {
-        background: #ffffff !important;
-        border-radius: 16px !important;
-        border: 1px solid #e2e8f0 !important;
-        box-shadow: 0 4px 20px rgba(99, 102, 241, 0.08);
-        transition: all 0.3s ease;
-        overflow: hidden;
-    }
-    
-    div[data-testid="stVerticalBlockBorderWrapper"]:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 12px 40px rgba(99, 102, 241, 0.15);
-        border-color: #c7d2fe !important;
-    }
-    
-    /* ===== FILE UPLOADER ===== */
-    [data-testid="stFileUploader"] {
-        background: transparent;
-    }
-    
-    [data-testid="stFileUploader"] section {
-        background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
-        border: 2px dashed #a5b4fc;
-        border-radius: 16px;
-        transition: all 0.3s ease;
-        padding: 2rem;
-    }
-    
-    [data-testid="stFileUploader"] section:hover {
-        border-color: #6366f1;
-        background: linear-gradient(135deg, #ede9fe 0%, #e0e7ff 100%);
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(99, 102, 241, 0.15);
-    }
-    
-    /* ===== BUTTONS ===== */
-    .stButton > button {
-        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-        color: white !important;
-        border: none;
-        border-radius: 12px;
-        padding: 0.8rem 1.8rem;
-        font-weight: 600;
-        font-size: 0.95rem;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
-    }
-    
-    .stButton > button:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 30px rgba(99, 102, 241, 0.4);
-        background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
-    }
-    
-    .stButton > button:active {
-        transform: translateY(-1px);
-    }
-    
-    /* Primary button */
-    .stButton > button[kind="primary"] {
-        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-        box-shadow: 0 4px 20px rgba(99, 102, 241, 0.35);
-    }
-    
-    .stButton > button[kind="primary"]:hover {
-        background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
-        box-shadow: 0 8px 35px rgba(139, 92, 246, 0.45);
-    }
-    
-    /* ===== TEXT INPUT & TEXT AREA ===== */
-    .stTextInput > div > div > input,
-    .stTextArea > div > div > textarea {
-        background: #ffffff !important;
-        border: 2px solid #e2e8f0 !important;
-        border-radius: 10px !important;
-        color: #1e293b !important;
-        transition: all 0.3s ease;
-    }
-    
-    .stTextInput > div > div > input:focus,
-    .stTextArea > div > div > textarea:focus {
-        border-color: #6366f1 !important;
-        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
-    }
-    
-    .stTextInput > div > div > input::placeholder,
-    .stTextArea > div > div > textarea::placeholder {
-        color: #94a3b8 !important;
-    }
-    
-    /* ===== METRICS ===== */
-    [data-testid="stMetric"] {
-        background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
-        border-radius: 16px;
-        padding: 1.25rem;
-        border: 1px solid #e0e7ff;
-        transition: all 0.3s ease;
-    }
-    
-    [data-testid="stMetric"]:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 10px 30px rgba(99, 102, 241, 0.12);
-        border-color: #c7d2fe;
-    }
-    
-    [data-testid="stMetric"] label {
-        color: #6366f1 !important;
-        font-weight: 500;
-        font-size: 0.85rem;
-    }
-    
-    [data-testid="stMetric"] [data-testid="stMetricValue"] {
-        font-size: 2.2rem !important;
-        font-weight: 700 !important;
-        color: #1e293b !important;
-    }
-    
-    [data-testid="stMetric"] [data-testid="stMetricDelta"] {
-        color: #10b981 !important;
-        font-weight: 600;
-    }
-    
-    /* ===== TABS ===== */
-    .stTabs [data-baseweb="tab-list"] {
-        background: #f1f5f9;
-        border-radius: 12px;
-        padding: 0.35rem;
-        gap: 0.35rem;
-    }
-    
-    .stTabs [data-baseweb="tab"] {
-        background: transparent;
-        color: #64748b;
-        border-radius: 10px;
-        padding: 0.7rem 1.25rem;
-        font-weight: 500;
-        transition: all 0.2s ease;
-    }
-    
-    .stTabs [data-baseweb="tab"]:hover {
-        background: #e2e8f0;
-        color: #1e293b;
-    }
-    
-    .stTabs [aria-selected="true"] {
-        background: #ffffff !important;
-        color: #6366f1 !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    }
-    
-    /* ===== EXPANDERS ===== */
-    .streamlit-expanderHeader {
-        background: #f8fafc;
-        border-radius: 12px;
-        border: 1px solid #e2e8f0;
-        color: #1e293b !important;
-        font-weight: 500;
-        transition: all 0.2s ease;
-    }
-    
-    .streamlit-expanderHeader:hover {
-        background: #f1f5f9;
-        border-color: #c7d2fe;
-    }
-    
-    .streamlit-expanderContent {
-        background: #ffffff;
-        border-radius: 0 0 12px 12px;
-        border: 1px solid #e2e8f0;
-        border-top: none;
-    }
-    
-    /* ===== DATAFRAMES ===== */
-    [data-testid="stDataFrame"] {
-        background: #ffffff;
-        border-radius: 12px;
-        overflow: hidden;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
-    }
-    
-    /* ===== ALERTS ===== */
-    .stSuccess {
-        background: #f0fdf4 !important;
-        border: 1px solid #86efac !important;
-        border-radius: 12px;
-        border-left: 4px solid #22c55e !important;
-    }
-    
-    .stSuccess p, .stSuccess span {
-        color: #166534 !important;
-    }
-    
-    .stWarning {
-        background: #fffbeb !important;
-        border: 1px solid #fde68a !important;
-        border-radius: 12px;
-        border-left: 4px solid #f59e0b !important;
-    }
-    
-    .stWarning p, .stWarning span {
-        color: #92400e !important;
-    }
-    
-    .stError {
-        background: #fef2f2 !important;
-        border: 1px solid #fecaca !important;
-        border-radius: 12px;
-        border-left: 4px solid #ef4444 !important;
-    }
-    
-    .stError p, .stError span {
-        color: #991b1b !important;
-    }
-    
-    .stInfo {
-        background: #eff6ff !important;
-        border: 1px solid #bfdbfe !important;
-        border-radius: 12px;
-        border-left: 4px solid #6366f1 !important;
-    }
-    
-    .stInfo p, .stInfo span {
-        color: #1e3a8a !important;
-    }
-    
-    /* ===== PROGRESS BAR ===== */
-    .stProgress > div > div {
-        background: linear-gradient(90deg, #6366f1, #8b5cf6, #a855f7);
-        border-radius: 10px;
-    }
-    
-    /* ===== STATUS ===== */
-    [data-testid="stStatusWidget"] {
-        background: #ffffff;
-        border-radius: 12px;
-        border: 1px solid #e2e8f0;
-    }
-    
-    /* ===== DIVIDERS ===== */
-    hr {
-        border: none;
-        height: 1px;
-        background: linear-gradient(90deg, transparent, #c7d2fe, #e9d5ff, transparent);
-        margin: 1.5rem 0;
-    }
-    
-    /* ===== CODE BLOCKS ===== */
-    .stCodeBlock {
-        background: rgba(15, 23, 42, 0.95) !important;
-        border-radius: 12px;
-        border: 1px solid rgba(102, 126, 234, 0.3);
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    }
-    
-    /* ===== CUSTOM SCROLLBAR ===== */
-    ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-    }
-    
-    ::-webkit-scrollbar-track {
-        background: #f1f5f9;
-        border-radius: 4px;
-    }
-    
-    ::-webkit-scrollbar-thumb {
-        background: linear-gradient(180deg, #6366f1, #8b5cf6);
-        border-radius: 4px;
-    }
-    
-    ::-webkit-scrollbar-thumb:hover {
-        background: linear-gradient(180deg, #8b5cf6, #a855f7);
-    }
-    
-    /* ===== SPECIAL EFFECTS ===== */
-    .floating-card {
-        animation: float 3s ease-in-out infinite;
-    }
-    
-    @keyframes float {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-10px); }
-    }
-    </style>
-    """, unsafe_allow_html=True)
+    # 🎨 Shadcn/Tailwind CSS
+    st.markdown(SHADCN_CSS, unsafe_allow_html=True)
     
     # Language toggle function
     def toggle_language():
@@ -1137,13 +1214,68 @@ def run_app():
         
         st.header(t('sidebar_title'))
         
-        if GEMINI_AVAILABLE:
-            st.success(t('ai_connected'))
-        else:
-            st.error(t('ai_not_connected'))
+        # แสดงสถานะ API ของแต่ละ provider
+        st.markdown("**📡 สถานะ API:**")
+        col_g, col_gr, col_or = st.columns(3)
+        with col_g:
+            if GEMINI_AVAILABLE:
+                st.success("Gemini ✅")
+            else:
+                st.error("Gemini ❌")
+        with col_gr:
+            if GROQ_AVAILABLE:
+                st.success("Groq ✅")
+            else:
+                st.error("Groq ❌")
+        with col_or:
+            if OPENROUTER_AVAILABLE:
+                st.success("OpenRouter ✅")
+            else:
+                st.error("OpenRouter ❌")
         
-        st.markdown(t('model_used'))
-        st.info(f"{t('batch_analysis')}: `{GEMINI_BATCH_MODEL_NAME}`") 
+        # 🏢 Provider Selector
+        st.markdown("---")
+        st.subheader("🏢 เลือก AI Provider")
+        
+        provider_options = list(AI_PROVIDERS.keys())
+        current_provider_idx = provider_options.index(st.session_state.selected_provider) if st.session_state.selected_provider in provider_options else 0
+        
+        selected_provider = st.selectbox(
+            "Provider",
+            options=provider_options,
+            index=current_provider_idx,
+            key='provider_selector',
+            label_visibility="collapsed"
+        )
+        
+        if selected_provider != st.session_state.selected_provider:
+            st.session_state.selected_provider = selected_provider
+            # Reset model to first of new provider
+            first_model = list(AI_PROVIDERS[selected_provider]["models"].keys())[0]
+            st.session_state.selected_model = first_model
+            st.session_state.analysis_results = None
+        
+        # 🤖 Model Selector (changes based on provider)
+        st.subheader("🤖 เลือกโมเดล")
+        
+        model_options = list(AI_PROVIDERS[st.session_state.selected_provider]["models"].keys())
+        current_model_idx = model_options.index(st.session_state.selected_model) if st.session_state.selected_model in model_options else 0
+        
+        selected_model = st.selectbox(
+            "เลือกโมเดล",
+            options=model_options,
+            index=current_model_idx,
+            key='model_selector',
+            label_visibility="collapsed"
+        )
+        
+        if selected_model != st.session_state.selected_model:
+            st.session_state.selected_model = selected_model
+            st.session_state.analysis_results = None
+        
+        current_model_id = AI_PROVIDERS[st.session_state.selected_provider]["models"].get(st.session_state.selected_model, "unknown")
+        st.info(f"🎯 `{current_model_id}`")
+        
         st.markdown("---")
         st.subheader(t('tips_title'))
         st.markdown(t('tip_1'))
@@ -1189,7 +1321,7 @@ def run_app():
         st.markdown(f"**{t('file_uploader_label')}**")
         uploaded_file = st.file_uploader(
             t('file_uploader_label'), 
-            type=['pdf', 'txt'], 
+            type=['pdf', 'txt', 'docx'], 
             accept_multiple_files=False, 
             key='file_uploader_widget', 
             label_visibility="collapsed"
@@ -1216,6 +1348,10 @@ def run_app():
                             with io.BytesIO(uploaded_file.getvalue()) as open_pdf_file:
                                 pdf_reader = PdfReader(open_pdf_file)
                                 raw_text = extract_text_from_pdf(pdf_reader)
+                        elif file_extension == 'docx':
+                            raw_text = extract_text_from_docx(uploaded_file)
+                            if raw_text is None:
+                                raise ValueError("ไม่สามารถอ่านไฟล์ DOCX ได้ หรือไม่ได้ติดตั้ง python-docx")
                         elif file_extension == 'txt':
                             raw_text = uploaded_file.getvalue().decode("utf-8")
                         
@@ -1249,8 +1385,16 @@ def run_app():
     
     # ใช้ Callback function เพื่อวิเคราะห์และบันทึกผลลัพธ์ (แก้ปัญหา Rerun ซ้ำซ้อน)
     def start_analysis_callback():
-        if not GEMINI_AVAILABLE:
-            st.error(t('api_not_ready'))
+        # ตรวจสอบ API ตาม provider ที่เลือก
+        provider = st.session_state.get('selected_provider', DEFAULT_PROVIDER)
+        provider_available = (
+            (provider == "Gemini (Google)" and GEMINI_AVAILABLE) or
+            (provider == "Groq (ฟรี+เร็วมาก)" and GROQ_AVAILABLE) or
+            (provider == "OpenRouter (หลายโมเดลฟรี)" and OPENROUTER_AVAILABLE)
+        )
+        
+        if not provider_available:
+            st.error(f"❌ ไม่พบ API Key สำหรับ {provider} - กรุณาตั้งค่าใน .env")
             return
             
         question_texts = st.session_state.question_texts
@@ -1259,12 +1403,15 @@ def run_app():
         # ใช้ st.status เพื่อรวมสถานะทั้งหมด
         with st.status(t('starting_analysis'), expanded=True) as status_box:
             
-            st.write(t('preparing_analysis').format(count=len(question_texts), model=GEMINI_BATCH_MODEL_NAME))
+            # ดึงโมเดลที่ผู้ใช้เลือก
+            provider_models = AI_PROVIDERS.get(provider, {}).get("models", {})
+            current_model = provider_models.get(st.session_state.selected_model, "unknown")
+            st.write(f"⏳ กำลังวิเคราะห์ {len(question_texts)} ข้อ ด้วย `{provider}` > `{current_model}`")
             progress_bar = st.progress(0, text=t('analysis_progress').format(current=0, total=len(question_texts)))
             
             for i, q_text in enumerate(question_texts):
                 st.write(t('analyzing_question').format(num=i+1))
-                analysis = analyze_with_gemini(q_text, question_id=i+1)
+                analysis = analyze_question(q_text, question_id=i+1)  # ใช้ wrapper function
                 if "**เกิดข้อผิดพลาด" in analysis.get('improvement_suggestion', ''):
                      st.error(f"Error analyzing question {i+1}: {analysis.get('improvement_suggestion')}")
 
@@ -1306,10 +1453,20 @@ def run_app():
         
         # ดึง valid_total ออกมาเพื่อใช้ในการคำนวณสัดส่วนในตาราง (แก้ NameError)
         valid_total = summary_data["การกระจายระดับความคิด"].get("valid_total", 0)
+        
+        # บันทึกประวัติการวิเคราะห์
+        save_analysis_history(
+            st.session_state.get('last_uploaded_file_name', 'unknown'),
+            all_analysis,
+            summary_data
+        )
 
-        # ใช้ Tabs สำหรับจัดระเบียบรายงาน
-        # *** โค้ดที่แก้ไข: ลบ tab_raw ออกไป ***
-        tab_summary, tab_details = st.tabs([t('tab_summary'), t('tab_details')])
+        # ใช้ Tabs สำหรับจัดระเบียบรายงาน - เพิ่ม Export tab
+        tab_summary, tab_details, tab_export = st.tabs([
+            t('tab_summary'), 
+            t('tab_details'),
+            "📥 Export รายงาน"
+        ])
 
         # --- Tab: Summary ---
         with tab_summary:
@@ -1513,14 +1670,106 @@ def run_app():
                     st.markdown(f"{t('correct_analysis')} {item.get('correct_option_analysis', 'N/A')}")
                     st.markdown(f"{t('distractor_analysis')} {item.get('distractor_analysis', 'N/A')}")
                     st.markdown(f"{t('why_good_distractor')} {item.get('why_good_distractor', 'N/A')}")
-                    
                     st.warning(f"{t('improvement_suggestion')} {item.get('improvement_suggestion', 'N/A')}")
+                    
+                    # ปุ่มปรับปรุงข้อสอบด้วย AI
+                    if st.button(f"✨ ปรับปรุงข้อสอบข้อที่ {q_index+1}", key=f"improve_{q_index}"):
+                        with st.spinner("กำลังปรับปรุงข้อสอบ..."):
+                            improved, err = improve_question_with_ai(
+                                item.get('question_text', ''),
+                                item.get('improvement_suggestion', '')
+                            )
+                            if improved:
+                                st.success("✅ ข้อสอบที่ปรับปรุงแล้ว:")
+                                st.markdown(improved)
+                            else:
+                                st.error(f"❌ เกิดข้อผิดพลาด: {err}")
                 
                 st.divider() 
 
 
-        # --- Tab: Raw JSON ---
-        # (ส่วนนี้ถูกลบตามคำขอของผู้ใช้)
+        # --- Tab: Export ---
+        with tab_export:
+            st.subheader("📥 ดาวน์โหลดรายงานผลวิเคราะห์")
+            
+            col_excel, col_info = st.columns([1, 2])
+            
+            with col_excel:
+                if EXCEL_AVAILABLE:
+                    excel_data = export_to_excel(all_analysis)
+                    if excel_data:
+                        st.download_button(
+                            label="📊 ดาวน์โหลด Excel",
+                            data=excel_data,
+                            file_name=f"exam_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True
+                        )
+                else:
+                    st.warning("ต้องติดตั้ง openpyxl เพื่อใช้ฟีเจอร์นี้")
+            
+            with col_info:
+                st.info(f"""
+                **ข้อมูลที่จะ Export:**
+                - จำนวนข้อสอบ: {len(all_analysis)} ข้อ
+                - ข้อสอบคุณภาพดี: {sum(1 for a in all_analysis if a.get('is_good_question'))} ข้อ
+                - ข้อสอบต้องปรับปรุง: {len(all_analysis) - sum(1 for a in all_analysis if a.get('is_good_question'))} ข้อ
+                """)
+
+    # --- Section: Generate New Exam ---
+    st.divider()
+    st.header("🆕 สร้างข้อสอบใหม่ด้วย AI")
+    
+    with st.expander("💡 คลิกเพื่อสร้างข้อสอบใหม่", expanded=False):
+        col_gen1, col_gen2 = st.columns(2)
+        
+        with col_gen1:
+            subject = st.text_input("📚 วิชา/หัวข้อ", placeholder="เช่น คณิตศาสตร์ ม.3, วิทยาศาสตร์ ป.6")
+            bloom_level = st.selectbox(
+                "🧠 ระดับ Bloom's Taxonomy",
+                ["จำ (Remember)", "เข้าใจ (Understand)", "ประยุกต์ใช้ (Apply)", 
+                 "วิเคราะห์ (Analyze)", "ประเมินค่า (Evaluate)", "สร้างสรรค์ (Create)"]
+            )
+        
+        with col_gen2:
+            num_questions = st.number_input("📝 จำนวนข้อ", min_value=1, max_value=20, value=5)
+            difficulty = st.selectbox("📊 ระดับความยาก", ["ง่าย", "ปานกลาง", "ยาก"])
+        
+        if st.button("🚀 สร้างข้อสอบ", type="primary", use_container_width=True):
+            if not subject:
+                st.warning("กรุณาระบุวิชา/หัวข้อ")
+            else:
+                with st.spinner(f"กำลังสร้างข้อสอบ {num_questions} ข้อ..."):
+                    exams, err = generate_exam_with_ai(subject, bloom_level, num_questions, difficulty)
+                    if exams:
+                        st.success(f"✅ สร้างข้อสอบสำเร็จ {len(exams)} ข้อ!")
+                        for i, exam in enumerate(exams, 1):
+                            with st.expander(f"ข้อ {i}: {exam.get('question', 'N/A')[:50]}..."):
+                                st.markdown(f"**คำถาม:** {exam.get('question', 'N/A')}")
+                                st.markdown("**ตัวเลือก:**")
+                                options = exam.get('options', [])
+                                for j, opt in enumerate(options):
+                                    prefix = ['ก.', 'ข.', 'ค.', 'ง.'][j] if j < 4 else f"{j+1}."
+                                    st.markdown(f"   {prefix} {opt}")
+                                st.markdown(f"**เฉลย:** {exam.get('answer', 'N/A')}")
+                                st.markdown(f"**คำอธิบาย:** {exam.get('explanation', 'N/A')}")
+                    else:
+                        st.error(f"❌ เกิดข้อผิดพลาด: {err}")
+
+    # --- Section: History ---
+    st.divider()
+    st.header("📜 ประวัติการวิเคราะห์")
+    
+    history = load_analysis_history()
+    if history:
+        for entry in history[:5]:  # แสดง 5 รายการล่าสุด
+            timestamp = entry.get('timestamp', 'N/A')[:10]
+            filename = entry.get('filename', 'N/A')
+            total = entry.get('total_questions', 0)
+            good = entry.get('good_questions', 0)
+            st.markdown(f"📁 **{filename}** - {timestamp} | {total} ข้อ (ดี: {good})")
+    else:
+        st.info("ยังไม่มีประวัติการวิเคราะห์")
 
 
 if __name__ == "__main__":

@@ -6,3 +6,4 @@ python-dotenv
 google-generativeai
 pandas
 gunicorn
+groq\r\nopenai\r\nopenpyxl\r\nfpdf2\r\npython-docx
