@@ -196,6 +196,8 @@ def render_history_sidebar_v2():
     for i, entry in enumerate(reversed(history)):
         timestamp = entry.get('timestamp', 'N/A')
         filename = entry.get('filename', 'Unknown')
+        total = entry.get('total_questions', 0)
+        good = entry.get('good_questions', 0)
         
         # Format nice timestamp
         try:
@@ -204,11 +206,17 @@ def render_history_sidebar_v2():
         except:
             time_str = timestamp
 
-        if st.button(f"📂 {filename}", key=f"hist_btn_{i}", use_container_width=True, help=f"วันที่: {time_str}"):
-            st.session_state.analysis_results = entry.get('results')
-            st.session_state.question_texts = entry.get('question_texts') # Optional restore
-            st.success(f"โหลดประวัติ: {filename}")
-            st.rerun()
+        # Card Style with Expander
+        with st.expander(f"📂 {filename}", expanded=False):
+            st.caption(f"🕒 {time_str}")
+            st.markdown(f"**จำนวน:** {total} ข้อ")
+            st.markdown(f"**คุณภาพดี:** {good} ข้อ")
+            
+            if st.button("⚡ โหลดผลลัพธ์", key=f"hist_btn_{i}", use_container_width=True):
+                st.session_state.analysis_results = entry.get('results')
+                st.session_state.question_texts = entry.get('question_texts')
+                st.success(f"โหลด: {filename}")
+                st.rerun()
 
 
 # Initialize session states
