@@ -1193,6 +1193,8 @@ def run_app():
             st.session_state.language = 'th'
     
     # Modern Minimal Header (Dynamic)
+        render_top_navigation()
+    st.markdown('---')
     st.markdown(f"""
     <div style="text-align: center; padding: 1.5rem 1rem 2rem 1rem; margin-bottom: 0.5rem;">
         <h1 style="font-size: 2.4rem; font-weight: 700; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 0.75rem;">
@@ -1208,115 +1210,36 @@ def run_app():
 
     
     with st.sidebar:
-        # Language Toggle Button at top
-        st.button(
-            t('language_btn'), 
-            on_click=toggle_language,
-            use_container_width=True,
-            key='lang_toggle'
-        )
-        st.markdown("---")
-        render_user_manual()
-        
-        st.header(t('sidebar_title'))
-        
-        # แสดงสถานะ API ของแต่ละ provider
-        st.markdown("**&#128225; สถานะ API:**")
-        if GEMINI_AVAILABLE:
-            st.success("Gemini: พร้อมใช้งาน &#9989;")
-        else:
-            st.error("Gemini: ไม่พร้อม &#10060;")
-            
-        if GROQ_AVAILABLE:
-            st.success("Groq: พร้อมใช้งาน &#9989;")
-        else:
-            st.error("Groq: ไม่พร้อม &#10060;")
-            
-        if OPENROUTER_AVAILABLE:
-            st.success("OpenRouter: พร้อมใช้งาน &#9989;")
-        else:
-            st.error("OpenRouter: ไม่พร้อม &#10060;")
-        
-        # &#127970; Provider Selector
-        st.markdown("---")
-        st.subheader("&#127970; เลือก AI Provider")
-        
-        provider_options = list(AI_PROVIDERS.keys())
-        current_provider_idx = provider_options.index(st.session_state.selected_provider) if st.session_state.selected_provider in provider_options else 0
-        
-        selected_provider = st.selectbox(
-            "Provider",
-            options=provider_options,
-            index=current_provider_idx,
-            key='provider_selector',
-            label_visibility="collapsed"
-        )
-        
-        if selected_provider != st.session_state.selected_provider:
-            st.session_state.selected_provider = selected_provider
-            # Reset model to first of new provider
-            first_model = list(AI_PROVIDERS[selected_provider]["models"].keys())[0]
-            st.session_state.selected_model = first_model
-            st.session_state.analysis_results = None
-        
-        # &#129302; Model Selector (changes based on provider)
-        st.subheader("&#129302; เลือกโมเดล")
-        
-        model_options = list(AI_PROVIDERS[st.session_state.selected_provider]["models"].keys())
-        current_model_idx = model_options.index(st.session_state.selected_model) if st.session_state.selected_model in model_options else 0
-        
-        selected_model = st.selectbox(
-            "เลือกโมเดล",
-            options=model_options,
-            index=current_model_idx,
-            key='model_selector',
-            label_visibility="collapsed"
-        )
-        
-        if selected_model != st.session_state.selected_model:
-            st.session_state.selected_model = selected_model
-            st.session_state.analysis_results = None
-        
-        current_model_id = AI_PROVIDERS[st.session_state.selected_provider]["models"].get(st.session_state.selected_model, "unknown")
-        st.info(f"&#127919; `{current_model_id}`")
+        render_sidebar_history()
 
-        # --- Custom Prompt (Sidebar) ---
-        st.markdown("---")
-        with st.expander(t('custom_prompt_title'), expanded=False):
-            st.caption(t('custom_prompt_label'))
-            custom_prompt_input = st.text_area(
-                "Custom Prompt",
-                value=st.session_state.custom_prompt,
-                height=150,
-                placeholder=t('custom_prompt_placeholder'),
-                key='custom_prompt_sidebar',
-                label_visibility="collapsed"
-            )
-            
-            if custom_prompt_input != st.session_state.custom_prompt:
-                st.session_state.custom_prompt = custom_prompt_input
-                st.session_state.analysis_results = None
-            
-            if st.session_state.custom_prompt.strip():
-                st.success(t('custom_prompt_active'))
-            else:
-                st.info(t('custom_prompt_default'))
-        
-        st.markdown("---")
-        st.subheader(t('tips_title'))
-        st.markdown(t('tip_1'))
-        st.markdown(t('tip_2'))
-        
-        # Quota Warning
-        st.markdown("---")
-        st.warning(t('quota_warning'))
-
-        if not GEMINI_AVAILABLE:
-            st.error(t('api_warning'))
 
 
 
     # --- Step 1: Upload ---
+    
+    # --- Custom Prompt (Main) ---
+    st.markdown("---")
+    with st.expander(t('custom_prompt_title'), expanded=False):
+        st.markdown(f"**{t('custom_prompt_label')}**")
+        custom_prompt_input = st.text_area(
+            "Custom Prompt",
+            value=st.session_state.custom_prompt,
+            height=150,
+            placeholder=t('custom_prompt_placeholder'),
+            key='custom_prompt_main',
+            label_visibility="collapsed"
+        )
+        if custom_prompt_input != st.session_state.custom_prompt:
+            st.session_state.custom_prompt = custom_prompt_input
+            st.session_state.analysis_results = None
+        
+        col_status1, col_status2 = st.columns([1, 1])
+        with col_status1:
+            if st.session_state.custom_prompt.strip():
+                st.success(t('custom_prompt_active'))
+            else:
+                st.info(t('custom_prompt_default'))
+
     st.markdown("---")
     st.header(t('step1_title'))
     with st.container(border=True):
