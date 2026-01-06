@@ -1259,6 +1259,13 @@ def create_analysis_report(all_analysis, bloom_check):
     df = pd.DataFrame(df_data)
     return summary_data, df
 
+
+def toggle_language():
+    if st.session_state.language == 'th':
+        st.session_state.language = 'en'
+    else:
+        st.session_state.language = 'th'
+
 # --- 4. Main App Function (UI) ---
 
 def run_app():
@@ -1275,11 +1282,7 @@ def run_app():
     st.markdown(SHADCN_CSS, unsafe_allow_html=True)
     
     # Language toggle function
-    def toggle_language():
-        if st.session_state.language == 'th':
-            st.session_state.language = 'en'
-        else:
-            st.session_state.language = 'th'
+
     
     # Modern Minimal Header (Dynamic)
     render_top_navigation()
