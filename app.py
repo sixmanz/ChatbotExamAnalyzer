@@ -183,7 +183,7 @@ def render_top_navigation():
                 st.session_state.selected_model = new_model
                 st.session_state.analysis_results = None
 
-def render_sidebar_history():
+def render_history_sidebar_v2():
     """Show History in Sidebar"""
     st.header("📜 ประวัติการวิเคราะห์")
     history = load_analysis_history()
@@ -1300,9 +1300,8 @@ def run_app():
     
     st.markdown("<hr>", unsafe_allow_html=True) 
 
-    
     with st.sidebar:
-        render_sidebar_history()
+        render_history_sidebar_v2()
 
 
 
