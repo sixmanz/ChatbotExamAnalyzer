@@ -185,7 +185,7 @@ def render_top_navigation():
 
 def render_history_sidebar_v2():
     """Show History in Sidebar"""
-    st.header("📜 ประวัติการวิเคราะห์")
+
     history = load_analysis_history()
     
     if not history:
