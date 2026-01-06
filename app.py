@@ -1772,20 +1772,7 @@ def run_app():
                     else:
                         st.error(f"&#10060; เกิดข้อผิดพลาด: {err}")
 
-    # --- Section: History ---
-    st.divider()
-    st.header("&#128220; ประวัติการวิเคราะห์")
-    
-    history = load_analysis_history()
-    if history:
-        for entry in history[:5]:  # แสดง 5 รายการล่าสุด
-            timestamp = entry.get('timestamp', 'N/A')[:10]
-            filename = entry.get('filename', 'N/A')
-            total = entry.get('total_questions', 0)
-            good = entry.get('good_questions', 0)
-            st.markdown(f"📁 **{filename}** - {timestamp} | {total} ข้อ (ดี: {good})")
-    else:
-        st.info("ยังไม่มีประวัติการวิเคราะห์")
+
 
 
 if __name__ == "__main__":
