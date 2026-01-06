@@ -204,7 +204,7 @@ def render_sidebar_history():
         except:
             time_str = timestamp
 
-        if st.button(f"{time_str} - {filename}", key=f"hist_btn_{i}", use_container_width=True):
+        if st.button(f"📂 {filename}", key=f"hist_btn_{i}", use_container_width=True, help=f"วันที่: {time_str}"):
             st.session_state.analysis_results = entry.get('results')
             st.session_state.question_texts = entry.get('question_texts') # Optional restore
             st.success(f"โหลดประวัติ: {filename}")
