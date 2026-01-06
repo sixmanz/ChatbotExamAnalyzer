@@ -98,6 +98,30 @@ if GROQ_API_KEY and len(GROQ_API_KEY) > 20:
 if OPENROUTER_API_KEY and len(OPENROUTER_API_KEY) > 20:
     OPENROUTER_AVAILABLE = True
 
+def render_user_manual():
+    """แสดงคู่มือการใช้งานสำหรับผู้เริ่มต้น"""
+    with st.expander("📚 คู่มือสำหรับมือใหม่ (คลิกอ่าน)", expanded=False):
+        st.markdown("""
+        **1. เริ่มต้นใช้งาน 🚀**
+        - เลือกไฟล์ข้อสอบ (PDF, DOCX, TXT) จากเครื่อง
+        - ระบบจะสกัดโจทย์ออกมาให้ตรวจสอบ
+        
+        **2. การเลือก AI (สำคัญ) 🧠**
+        - **Gemini**: ฉลาดที่สุด แต่อาจติด Limit (429)
+        - **Groq**: เร็วมาก & ฟรี! (แนะนำเมื่อ Gemini เต็ม)
+        - *เปลี่ยนได้ที่ "เลือก AI Provider" ด้านล่าง*
+        
+        **3. ฟีเจอร์พิเศษ ✨**
+        - **Export**: ดาวน์โหลด Excel/PDF ที่แท็บ Export
+        - **สร้างข้อสอบ**: ให้ AI ช่วยคิดโจทย์ใหม่
+        - **ประวัติ**: ดูผลย้อนหลังได้ที่ด้านล่างสุด
+        
+        **4. แก้ปัญหา Error 429 ⚠️**
+        - หาก AI ไม่ตอบ (Quota Exceeded)
+        - ให้เปลี่ยน Provider เป็น **Groq** หรือ **OpenRouter** ทันที
+        \""")
+
+
 
 # Initialize session states
 if 'analysis_results' not in st.session_state:
@@ -350,7 +374,7 @@ BLOOM_COLORS = {
 }
 
 def get_bloom_color(level):
-    """ส่งคืนรหัสสี Hex ตามระดับ Bloom's Taxonomy"""
+    # Returns Hex color for Bloom's Taxonomy level
     if not level:
         return BLOOM_COLORS['ไม่ระบุ']
     
@@ -907,7 +931,7 @@ def generate_exam_with_ai(subject, bloom_level, num_questions, difficulty="ป�
     
     prompt = f"""สร้างข้อสอบปรนัย 4 ตัวเลือก จำนวน {num_questions} ข้อ
 วิชา: {subject}
-ระดับ Bloom's Taxonomy: {bloom_level}
+Level: {bloom_level}
 ระดับความยาก: {difficulty}
 
 สำหรับแต่ละข้อ ให้มี:
@@ -1171,30 +1195,12 @@ def run_app():
     
     # Modern Minimal Header (Dynamic)
     st.markdown(f"""
-    <div style="
-        text-align: center; 
-        padding: 1.5rem 1rem 2rem 1rem;
-        margin-bottom: 0.5rem;
-    ">
-        <h1 style="
-            font-size: 2.4rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 0.75rem;
-        ">
-            {t('app_title')}
+    <div style="text-align: center; padding: 1.5rem 1rem 2rem 1rem; margin-bottom: 0.5rem;">
+        <h1 style="font-size: 2.4rem; font-weight: 700; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 0.75rem;">
+            {t('header_title')}
         </h1>
-        <p style="
-            color: #64748b;
-            font-size: 1rem;
-            max-width: 600px;
-            margin: 0 auto;
-            line-height: 1.6;
-        ">
-            {t('app_subtitle')}
+        <p style="font-size: 1.1rem; color: #4b5563; max-width: 600px; margin: 0 auto; line-height: 1.6;">
+            {t('header_subtitle')}
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -1211,6 +1217,7 @@ def run_app():
             key='lang_toggle'
         )
         st.markdown("---")
+        render_user_manual()
         
         st.header(t('sidebar_title'))
         
