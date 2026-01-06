@@ -1158,18 +1158,7 @@ def load_analysis_history():
     return []
 
 
-def extract_text_from_docx(file):
-    """สกัดข้อความจากไฟล์ DOCX"""
-    if not DOCX_AVAILABLE:
-        return None
-    try:
-        doc = DocxDocument(file)
-        full_text = []
-        for para in doc.paragraphs:
-            full_text.append(para.text)
-        return '\n'.join(full_text)
-    except Exception as e:
-        return None
+
 
 
 def check_bloom_criteria(analysis_results):
