@@ -599,10 +599,17 @@ def extract_questions(raw_text):
 
     # 3. การตรวจสอบความถูกต้อง (Validation แบบยืดหยุ่น)
     valid_questions = []
+    extracted_indices = []
+
     for q in questions:
         q = q.strip()
         if len(q) < 5: continue 
         
+        # Check if it starts with a number
+        match_idx = re.match(r'^(\d+)', q)
+        if match_idx:
+            extracted_indices.append(int(match_idx.group(1)))
+
         has_std_options = len(re.findall(r'[ก-งA-D]\.', q)) >= 2
         
         if has_std_options:
@@ -612,15 +619,38 @@ def extract_questions(raw_text):
             if len(q) > 10: 
                 valid_questions.append(q)
     
-    # --- FALLBACK TO AI ---
-    # ถ้าหาไม่เจอเลย หรือเจอน้อยผิดปกติเมื่อเทียบกับความยาวข้อความ (เช่น ข้อความยาว 5000 ตัวอักษร แต่เจอ 0 ข้อ)
-    # หรือถ้าเจอ < 3 ข้อ แต่ข้อความยาวมาก ให้ลองใช้ AI ช่วย
+    # --- INTELLIGENT FALLBACK TO AI ---
+    # Detect Chaotic Numbering (indicates false positives or bad parse)
+    is_chaotic = False
+    if extracted_indices:
+        # Check for non-sequential jumps
+        jumps = 0
+        sorted_idx = sorted(extracted_indices)
+        for k in range(len(sorted_idx) - 1):
+             if sorted_idx[k+1] - sorted_idx[k] != 1:
+                 jumps += 1
+        
+        # Tolerance: If > 30% of transitions are jumps, it's chaotic
+        if len(extracted_indices) > 5 and (jumps / len(extracted_indices) > 0.3):
+            is_chaotic = True
+
+    # Conditions to force AI:
+    # 1. Very few questions found (< 3) but text is long.
+    # 2. Results found are suspiciously chaotic (e.g. 1, 2, 2566, 4, 30...).
+    # 3. Many items found but failed basic option check (maybe just raw lines).
+    
     is_suspiciously_low = len(valid_questions) == 0 or (len(valid_questions) < 3 and len(raw_text) > 500)
     
-    if is_suspiciously_low and GEMINI_AVAILABLE:
-        st.toast("&#9888; รูปแบบไฟล์ซับซ้อน กำลังใช้ AI ช่วยแกะข้อสอบ...", icon="&#129302;")
+    should_use_ai = (is_suspiciously_low or is_chaotic) and GEMINI_AVAILABLE
+    
+    if should_use_ai:
+        reason = "Format ซับซ้อน" if is_chaotic else "หาข้อสอบไม่พบ"
+        st.toast(f"&#9888; กำลังใช้ AI แกะข้อสอบ ({reason})...", icon="&#129302;")
+        
         ai_extracted = extract_questions_with_ai(raw_text)
-        if len(ai_extracted) > len(valid_questions):
+        
+        # If AI found valid questions, use them
+        if len(ai_extracted) > 0:
              return ai_extracted
 
     return valid_questions
