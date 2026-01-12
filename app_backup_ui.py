@@ -334,28 +334,6 @@ TRANSLATIONS = {
         
         # Language
         'language_btn': '🌐 English',
-
-        # --- New Dashboard Keys ---
-        'dashboard_overview': '📊 ภาพรวมการวิเคราะห์',
-        'metric_total': 'จำนวนข้อทั้งหมด',
-        'metric_good': 'ข้อสอบคุณภาพดี',
-        'ready_to_use': 'ใช้ได้เลย',
-        'metric_bad': 'ต้องปรับปรุง',
-        'to_improve': 'ต้องแก้ไข',
-        'metric_bloom_pass': 'เกณฑ์ Bloom: ผ่าน',
-        'metric_bloom_fail': 'เกณฑ์ Bloom: ไม่ผ่าน',
-        'balanced': 'สมดุลดี',
-        'unbalanced': 'ไม่สมดุล',
-        'chart_bloom_dist': '📈 การกระจายตัว Bloom\'s Taxonomy',
-        'table_quick_summary': '📋 สรุปย่อ',
-        'deep_dive_title': '📝 เจาะลึกรายข้อ',
-        'auto_fix_btn': '✨ แก้ไขอัตโนมัติ',
-        'gen_exam_title': '✨ สร้างข้อสอบด้วย AI',
-        'ai_config': '⚙️ ตั้งค่า AI',
-        'provider_label': 'ผู้ให้บริการ',
-        'model_label': 'โมเดล',
-        'advanced_settings': '⚙️ ตั้งค่าเพิ่มเติม (Custom Prompt)',
-        'analyze_this_file': '🚀 วิเคราะห์ไฟล์: {filename}',
     },
     'en': {
         # Header
@@ -445,28 +423,6 @@ TRANSLATIONS = {
         
         # Language
         'language_btn': '🌐 ภาษาไทย',
-
-        # --- New Dashboard Keys ---
-        'dashboard_overview': '📊 Analysis Overview',
-        'metric_total': 'Total Questions',
-        'metric_good': 'Good Quality',
-        'ready_to_use': 'Ready to use',
-        'metric_bad': 'Needs Work',
-        'to_improve': 'To Improve',
-        'metric_bloom_pass': 'Bloom Criteria: PASS',
-        'metric_bloom_fail': 'Bloom Criteria: FAIL',
-        'balanced': 'Balanced',
-        'unbalanced': 'Unbalanced',
-        'chart_bloom_dist': '📈 Bloom\'s Taxonomy Dist.',
-        'table_quick_summary': '📋 Quick Summary',
-        'deep_dive_title': '📝 Question Deep Dive',
-        'auto_fix_btn': '✨ Auto-Fix Question',
-        'gen_exam_title': '✨ AI Exam Generator',
-        'ai_config': '⚙️ AI Config',
-        'provider_label': 'Provider',
-        'model_label': 'Model',
-        'advanced_settings': '⚙️ Advanced Settings (Custom Prompt)',
-        'analyze_this_file': '🚀 Analyze: {filename}',
     }
 }
 
@@ -715,57 +671,26 @@ def build_analysis_prompt(question_text, question_id=1):
     
     # 1. Get Custom or Default System Prompt
     custom_prompt = st.session_state.get('custom_prompt', '').strip()
-    language = st.session_state.get('language', 'th')
     
-    # Language Instruction
-    lang_instruction = "IMPORTANT: Please output your analysis reasoning inside the JSON in Thai language."
-    if language == 'en':
-         lang_instruction = "IMPORTANT: Please output your analysis reasoning inside the JSON in English language."
-
     if custom_prompt:
          system_prompt = custom_prompt
+         # Simple user message if custom prompt is used (assume user handles structure in custom prompt or we append minimal instruction)
+         # But to be safe for JSON mode, we should remind about JSON if not present
          if "json" not in custom_prompt.lower():
              system_prompt += "\n\nIMPORTANT: Return response in raw JSON format only."
-         # Append Language Instruction
-         system_prompt += f"\n\n{lang_instruction}"
     else:
-         system_prompt = SYSTEM_INSTRUCTION_PROMPT + f"\n\n{lang_instruction}"
+         system_prompt = SYSTEM_INSTRUCTION_PROMPT
 
-    # 2. Build User Message (Dynamic Schema based on Language)
-    if language == 'en':
-        # English Schema Constraints
-        valid_difficulty = "Easy, Medium, Hard"
-        valid_options = "A, B, C, D"
-        
-        user_message = f"""Question {question_id}:
-{question_text}
-
-Analyze and answer in JSON only (No Markdown text). Required keys: 
-- bloom_level (String: Remember, Understand, Apply, Analyze, Evaluate, Create)
-- reasoning (String)
-- difficulty (String: {valid_difficulty})
-- curriculum_standard (String)
-- correct_option (String: {valid_options})
-- correct_option_analysis (String)
-- distractor_analysis (String)
-- why_good_distractor (String)
-- is_good_question (Boolean)
-- improvement_suggestion (String)"""
-
-    else:
-        # Thai Schema Constraints (Default)
-        valid_difficulty = "ง่าย, ปานกลาง, ยาก"
-        valid_options = "ก, ข, ค, ง"
-        
-        user_message = f"""คำถามข้อที่ {question_id}:
+    # 2. Build User Message
+    user_message = f"""คำถามข้อที่ {question_id}:
 {question_text}
 
 วิเคราะห์และตอบเป็น JSON เท่านั้น (ไม่ต้องมี Markdown text) โดยมี keys: 
 - bloom_level (String: Remember, Understand, Apply, Analyze, Evaluate, Create)
 - reasoning (String)
-- difficulty (String: {valid_difficulty})
+- difficulty (String: ง่าย, ปานกลาง, ยาก)
 - curriculum_standard (String)
-- correct_option (String: {valid_options})
+- correct_option (String: ก, ข, ค, ง)
 - correct_option_analysis (String)
 - distractor_analysis (String)
 - why_good_distractor (String)
@@ -1388,412 +1313,520 @@ def toggle_language():
         st.session_state.language = 'en'
     else:
         st.session_state.language = 'th'
-    
-    # 🔄 Reset Analysis Results to force AI re-generation in new language
-    st.session_state.analysis_results = None
-    st.rerun()
 
-# --- 4. Main App Function (Modern UI Components) ---
-
-def render_hero_section():
-    """ส่วนหัวของแอพแบบ Minimalist Dashboard"""
-    
-    # Grid Layout for Header: Title Left (2), Toolbar Right (1)
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        st.markdown(f"""
-        <div style="padding-top: 1rem;">
-            <h1 style="font-size: 1.8rem; font-weight: 700; margin-bottom: 0px; color: #1e293b; letter-spacing: -0.02em;">
-                {t('app_title')}
-            </h1>
-            <p style="font-size: 1rem; color: #64748b; margin-top: 4px;">
-                AI Exam Analysis Dashboard
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-    with col2:
-        # Mini Toolbar (Right Aligned)
-        c1, c2 = st.columns([1, 1.5]) 
-        with c1:
-             st.button(
-                t('language_btn'), 
-                on_click=toggle_language,
-                use_container_width=True,
-                key='top_lang_toggle'
-            )
-        with c2:
-         # Compact Provider/Model Selector
-         # ใช้ Popover แทน Selectbox ใหญ่ๆ เพื่อความ Clean
-         with st.popover(t('ai_config'), use_container_width=True):
-             st.caption("AI Provider & Model")
-             
-             # Logic เดิมในการเลือก Provider
-             provider_options = list(AI_PROVIDERS.keys())
-             current_idx = provider_options.index(st.session_state.selected_provider) if st.session_state.selected_provider in provider_options else 0
-             new_provider = st.selectbox(t('provider_label'), provider_options, index=current_idx, key='top_provider')
-             
-             if new_provider != st.session_state.selected_provider:
-                st.session_state.selected_provider = new_provider
-                first_model = list(AI_PROVIDERS[new_provider]["models"].keys())[0]
-                st.session_state.selected_model = first_model
-                st.session_state.analysis_results = None
-                st.rerun()
-                
-             # Model Update logic
-             model_options = list(AI_PROVIDERS[st.session_state.selected_provider]["models"].keys())
-             current_midx = model_options.index(st.session_state.selected_model) if st.session_state.selected_model in model_options else 0
-             new_model = st.selectbox(t('model_label'), model_options, index=current_midx, key='top_model')
-             
-             if new_model != st.session_state.selected_model:
-                 st.session_state.selected_model = new_model
-                 st.session_state.analysis_results = None
-    
-    st.markdown("---") # Divider บางๆ
-
-
-def render_input_studio():
-    """ส่วน Input หลัก (Upload + Settings) แบบ Single Column Flow"""
-    
-    # 1. Main Action Container (Clean & Focused)
-    with st.container(border=True):
-        # Header
-        st.markdown(f"#### {t('step1_title')}")
-        
-        # File Uploader (Full Width - Hero)
-        uploaded_file = st.file_uploader(
-            t('file_uploader_label'), 
-            type=['pdf', 'txt', 'docx'], 
-            accept_multiple_files=False, 
-            key='file_uploader_widget', 
-            label_visibility="visible" # Make it clear
-        )
-
-        # 2. Status & Context
-        if uploaded_file:
-            st.success(f"✅ Ready: **{uploaded_file.name}** ({round(uploaded_file.size/1024, 1)} KB)")
-        else:
-            st.info(f"💡 {t('tips_title')}: {t('tip_1')} / {t('tip_2')}")
-
-        st.markdown("###") # Vertical Specer
-
-        # 3. Advanced Settings (Mental Model: Hide complexity)
-        with st.expander(t('advanced_settings'), expanded=False):
-            # Custom Prompt
-            st.caption(t('custom_prompt_placeholder'))
-            custom_prompt_input = st.text_area(
-                "System Instruction",
-                value=st.session_state.custom_prompt,
-                height=150,
-                placeholder="Put your custom prompt here...",
-                key='custom_prompt_main',
-                label_visibility="collapsed"
-            )
-            if custom_prompt_input != st.session_state.custom_prompt:
-                st.session_state.custom_prompt = custom_prompt_input
-
-
-        # 4. Primary Action Button (Bottom - Destination)
-        st.markdown("###") # Vertical Spacer
-
-        # Logic Update Trigger
-        if uploaded_file:
-             if uploaded_file.name != st.session_state.last_uploaded_file_name:
-                st.session_state.analysis_results = None
-                st.session_state.last_uploaded_file_name = uploaded_file.name
-                st.session_state.question_texts = None
-        
-        # Button Logic
-        if st.session_state.question_texts:
-            # Ready to Analyze state
-            btn_label = t('analyze_this_file').format(filename=uploaded_file.name)
-            st.button(
-                btn_label, 
-                type="primary", 
-                use_container_width=True,
-                on_click=start_analysis_callback
-            )
-        elif uploaded_file:
-             # Extracting state
-             st.caption(f"⏳ {t('reading_file')}")
-        else:
-             # Empty state
-             st.button(t('start_analysis_btn'), disabled=True, use_container_width=True)
-
-    return uploaded_file
-
-
-def render_dashboard_overview(summary_data, bloom_check):
-    """แสดง Dashboard สถิติหลัก (Metrics Grid)"""
-    
-    st.markdown(f"### {t('dashboard_overview')}")
-    
-    # 4-Column Grid for Key Metrics
-    col1, col2, col3, col4 = st.columns(4) 
-    
-    stats = summary_data["สถิติโดยรวม"]
-    
-    # Helper to clean text
-    def get_val(text): return text.split(' ')[0]
-    
-    with col1:
-        st.metric(t('metric_total'), get_val(stats["จำนวนข้อสอบทั้งหมด"]))
-        
-    with col2:
-        good_val = get_val(stats["ข้อสอบ **ดี** (ใช้ได้เลย)"])
-        st.metric(f"✅ {t('metric_good')}", good_val, delta=t('ready_to_use'))
-        
-    with col3:
-        bad_val = get_val(stats["ข้อสอบ **ต้องปรับปรุง**"])
-        st.metric(f"⚠️ {t('metric_bad')}", bad_val, delta=t('to_improve'), delta_color="inverse")
-        
-    with col4:
-        # Bloom Pass/Fail Badge
-        if bloom_check['pass']:
-             st.metric("Bloom Criteria", "PASS", delta=t('balanced'), delta_color="normal")
-        else:
-             st.metric("Bloom Criteria", "FAIL", delta=t('unbalanced'), delta_color="inverse")
-
-    st.markdown("---")
-
-
-def render_detailed_results(all_analysis, bloom_check, summary_data, df):
-    """แสดงผลลัพธ์ละเอียด (Charts + Table + List)"""
-
-    # Layout: Chart Left (1), Table Right (1.5)
-    col_chart, col_table = st.columns([1, 1.5])
-    
-    # --- 1. Bloom Distribution Chart ---
-    with col_chart:
-        st.markdown(f"##### {t('chart_bloom_dist')}")
-        bloom_counts = bloom_check['raw_counts']
-        # Prepare Data
-        chart_data_raw = {
-            'Level': list(bloom_counts.keys())[:-1], # Exclude Unknown
-            'Count': list(bloom_counts.values())[:-1],
-            'Color': [get_bloom_color(level) for level in list(bloom_counts.keys())[:-1]]
-        }
-        chart_df = pd.DataFrame(chart_data_raw)
-        
-        if not chart_df.empty and chart_df['Count'].sum() > 0:
-            base = alt.Chart(chart_df).encode(theta=alt.Theta("Count", stack=True))
-            pie = base.mark_arc(outerRadius=100).encode(
-                color=alt.Color("Level", scale=alt.Scale(domain=chart_df['Level'].tolist(), range=chart_df['Color'].tolist()), legend=None),
-                tooltip=["Level", "Count"],
-                order=alt.Order("Count", sort="descending")
-            )
-            st.altair_chart(pie, use_container_width=True)
-            
-            # Simple Legend
-            st.caption("Distribution of cognitive levels.")
-        else:
-            st.info("No data for chart.")
-
-    # --- 2. Summary Table ---
-    with col_table:
-        st.markdown(f"##### {t('table_quick_summary')}")
-        st.dataframe(
-            df[['ข้อที่', 'คุณภาพข้อสอบ', 'ระดับความคิด', 'ข้อเสนอแนะ']],
-            column_config={
-                "คุณภาพข้อสอบ": st.column_config.TextColumn(t('quality'), width="small"),
-                "ระดับความคิด": st.column_config.TextColumn("Bloom", width="small"),
-                "ข้อเสนอแนะ": st.column_config.TextColumn(t('suggestion'), width="medium"),
-            },
-            hide_index=True,
-            use_container_width=True,
-            height=300
-        )
-
-    # --- 3. Detailed Expandable List (Full Width) ---
-    st.markdown(f"### {t('deep_dive_title')}")
-    st.caption(t('click_detail'))
-    
-    for q_index, item in enumerate(all_analysis):
-        is_good = item.get('is_good_question')
-        icon = "✅" if is_good else "⚠️"
-        bloom = item.get('bloom_level', 'Unknown')
-        
-        # Premium Card Header
-        with st.expander(f"{icon} **{t('question_num')} {q_index+1}** · {bloom}", expanded=False):
-            # Inner Content (Layout similar to before but cleaner)
-            c1, c2 = st.columns([2, 1])
-            with c1:
-                st.markdown(f"**{t('full_question')}**")
-                st.info(item.get('question_text', 'N/A'))
-            with c2:
-                st.markdown("**Analysis:**")
-                st.markdown(f"- **{t('difficulty')}** {item.get('difficulty')}")
-                st.markdown(f"- **Standard:** `{item.get('curriculum_standard')}`")
-                st.markdown(f"- **Correct:** {item.get('correct_option')}")
-            
-            st.markdown("---")
-            st.markdown(f"**💡 AI Feedback:** {item.get('improvement_suggestion')}")
-
-            # Edit/Improve Action
-            if st.button(f"✨ {t('auto_fix_btn')} {q_index+1}", key=f"fix_{q_index}"):
-                with st.spinner("AI is rewriting..."):
-                     # (Reuse existing improve logic)
-                     improved, err = improve_question_with_ai(item.get('question_text', ''), item.get('improvement_suggestion', 'Make it better'))
-                     if improved: st.success("Suggested Fix:"); st.code(improved)
-
-
-# --- 4. Main App Function (Old one renamed later) ---
-
-# --- Global Callback (Must be before run_app or reachable) ---
-def start_analysis_callback():
-    """Callback function to start analysis"""
-    # ตรวจสอบ API ตาม provider ที่เลือก
-    provider = st.session_state.get('selected_provider', DEFAULT_PROVIDER)
-    provider_available = (
-        (provider == "Gemini (Google)" and GEMINI_AVAILABLE) or
-        (provider == "Groq (ฟรี+เร็วมาก)" and GROQ_AVAILABLE) or
-        (provider == "OpenRouter (หลายโมเดลฟรี)" and OPENROUTER_AVAILABLE)
-    )
-    
-    if not provider_available:
-        st.error(f"❌ ไม่พบ API Key สำหรับ {provider} - กรุณาตั้งค่าใน .env")
-        return
-        
-    question_texts = st.session_state.question_texts
-    if not question_texts:
-         st.error("❌ ไม่พบข้อมูลข้อสอบ")
-         return
-
-    analysis_results = []
-    
-    # ใช้ st.status เพื่อรวมสถานะทั้งหมด
-    with st.status(t('starting_analysis'), expanded=True) as status_box:
-        
-        # ดึงโมเดลที่ผู้ใช้เลือก
-        provider_models = AI_PROVIDERS.get(provider, {}).get("models", {})
-        current_model = provider_models.get(st.session_state.selected_model, "unknown")
-        st.write(f"⏳ กำลังวิเคราะห์ {len(question_texts)} ข้อ ด้วย `{provider}` > `{current_model}`")
-        progress_bar = st.progress(0, text=t('analysis_progress').format(current=0, total=len(question_texts)))
-        
-        for i, q_text in enumerate(question_texts):
-            st.write(t('analyzing_question').format(num=i+1))
-            analysis = analyze_question(q_text, question_id=i+1)  # ใช้ wrapper function
-            if "**เกิดข้อผิดพลาด" in analysis.get('improvement_suggestion', ''):
-                    st.error(f"Error analyzing question {i+1}: {analysis.get('improvement_suggestion')}")
-
-            analysis["question_text"] = q_text 
-            analysis_results.append(analysis)
-            
-            progress_percent = (i + 1) / len(question_texts)
-            progress_bar.progress(progress_percent, text=t('analysis_progress').format(current=i+1, total=len(question_texts)))
-            
-            # เพิ่ม delay ระหว่าง requests เพื่อหลีกเลี่ยง rate limit
-            if i < len(question_texts) - 1:  # ไม่ต้องรอหลังข้อสุดท้าย
-                time.sleep(2)  # รอ 2 วินาทีระหว่างแต่ละ request
-        
-        # บันทึกผลลัพธ์ลงใน session state
-        st.session_state.analysis_results = analysis_results
-        
-        # อัพเดทสถานะ
-        status_box.update(label=t('analysis_complete'), state="complete", expanded=False)
-
-
-# --- 4. Main App Function (Final Structure) ---
+# --- 4. Main App Function (UI) ---
 
 def run_app():
     # 🎨 ตั้งค่าหน้าจอ
     st.set_page_config(
-        page_title="AI Exam Analyzer Studio",
-        page_icon="🤖", 
+        page_title="เครื่องมือวิเคราะห์ข้อสอบอัตโนมัติ (Gemini AI)",
+        page_icon="📝", 
         layout="wide",
-        initial_sidebar_state="auto"
+        initial_sidebar_state="auto", 
+        menu_items=None
     )
     
     # 🎨 Shadcn/Tailwind CSS
     st.markdown(SHADCN_CSS, unsafe_allow_html=True)
     
-    # --- UI: Header ---
-    render_hero_section()
+    # Language toggle function
+
     
-    # --- Sidebar ---
+    # Modern Minimal Header (Dynamic)
+    render_top_navigation()
+    st.markdown('---')
+    st.markdown(f"""
+    <div style="text-align: center; padding: 1.5rem 1rem 2rem 1rem; margin-bottom: 0.5rem;">
+        <h1 style="font-size: 2.4rem; font-weight: 700; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 0.75rem;">
+            {t('app_title')}
+        </h1>
+        <p style="font-size: 1.1rem; color: #4b5563; max-width: 600px; margin: 0 auto; line-height: 1.6;">
+            {t('app_subtitle')}
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("<hr>", unsafe_allow_html=True) 
+
     with st.sidebar:
         render_history_sidebar_v2()
 
-    # --- UI: Input Studio ---
-    uploaded_file = render_input_studio()
-    
-    # --- Logic: File Processing (Hidden State) ---
-    if uploaded_file and st.session_state.get('question_texts') is None:
-         # Logic to extract questions (Lazy Load)
-         with st.spinner(t('extracting')):
-             try:
-                file_extension = uploaded_file.name.split('.')[-1].lower()
-                if file_extension == 'pdf':
-                    with io.BytesIO(uploaded_file.getvalue()) as open_pdf_file:
-                        pdf_reader = PdfReader(open_pdf_file)
-                        raw_text = extract_text_from_pdf(pdf_reader)
-                elif file_extension == 'docx':
-                    raw_text = extract_text_from_docx(uploaded_file)
-                elif file_extension == 'txt':
-                    raw_text = uploaded_file.getvalue().decode("utf-8")
-                else:
-                    raw_text = ""
-                
-                # Extract
-                q_texts = extract_questions(raw_text)
-                if q_texts:
-                    st.session_state.question_texts = q_texts
-                    st.success(f"✅ Extracted {len(q_texts)} questions!")
-                    time.sleep(1) # Show success briefly
-                    st.rerun() # Refresh to update button state
-                else:
-                    st.error("ไม่พบข้อสอบในไฟล์")
-             except Exception as e:
-                 st.error(f"Error reading file: {e}")
 
-    # --- UI: Dashboard Results ---
-    if st.session_state.analysis_results:
-        st.markdown("###") # Spacer
+
+
+    # --- Step 1: Upload ---
+    
+    # --- Custom Prompt (Main) ---
+    # --- Custom Prompt (Main) ---
+    st.markdown("---")
+    
+    with st.container(border=True):
+        col_c1, col_c2 = st.columns([3, 1])
+        with col_c1:
+            st.markdown("### 🛠️ ปรับแต่งคำสั่ง AI (Custom Prompt)")
+            st.caption("กำหนดคำสั่งให้ AI วิเคราะห์ตามแบบที่คุณต้องการ")
+        with col_c2:
+            use_custom = st.toggle("เปิดใช้งาน", value=bool(st.session_state.custom_prompt.strip()), key="toggle_custom_prompt")
+
+        if use_custom:
+            custom_prompt_input = st.text_area(
+                "ใส่ Prompt ของคุณที่นี่:",
+                value=st.session_state.custom_prompt,
+                height=150,
+                placeholder=t('custom_prompt_placeholder'),
+                key='custom_prompt_main',
+            )
+            if custom_prompt_input != st.session_state.custom_prompt:
+                st.session_state.custom_prompt = custom_prompt_input
+                st.session_state.analysis_results = None # Reset
+            
+            st.info("💡 ข้อแนะนำ: เขียนคำสั่งให้ชัดเจน เช่น 'วิเคราะห์ข้อสอบนี้ เน้นเรื่อง...'")
+        else:
+            if st.session_state.custom_prompt: # If toggled off but had value
+                st.session_state.custom_prompt = ""
+                st.rerun()
+            st.success("✅ กำลังใช้คำสั่งมาตรฐาน (Default Prompt)")
+
+    st.markdown("---")
+    st.header(t('step1_title'))
+    with st.container(border=True):
+        st.markdown(f"**{t('file_uploader_label')}**")
+        uploaded_file = st.file_uploader(
+            t('file_uploader_label'), 
+            type=['pdf', 'txt', 'docx'], 
+            accept_multiple_files=False, 
+            key='file_uploader_widget', 
+            label_visibility="collapsed"
+        )
+        st.caption(t('file_tip'))
+
+        if uploaded_file is not None:
+            # ตรวจสอบว่าไฟล์เปลี่ยนไปหรือไม่
+            if uploaded_file.name != st.session_state.last_uploaded_file_name:
+                st.session_state.analysis_results = None
+                st.session_state.last_uploaded_file_name = uploaded_file.name
+                st.session_state.question_texts = None
+                
+            if st.session_state.question_texts is None:
+                file_extension = uploaded_file.name.split('.')[-1].lower()
+                
+                # Custom Loading UI สำหรับการสกัดข้อสอบ
+                status_container = st.empty()
+                status_container.info(f"{t('reading_file')}\n\n{t('from_file')} **{uploaded_file.name}**...")
+                
+                with st.spinner(t('extracting')):
+                    try:
+                        if file_extension == 'pdf':
+                            with io.BytesIO(uploaded_file.getvalue()) as open_pdf_file:
+                                pdf_reader = PdfReader(open_pdf_file)
+                                raw_text = extract_text_from_pdf(pdf_reader)
+                        elif file_extension == 'docx':
+                            raw_text = extract_text_from_docx(uploaded_file)
+                            if raw_text is None:
+                                raise ValueError("ไม่สามารถอ่านไฟล์ DOCX ได้ หรือไม่ได้ติดตั้ง python-docx")
+                        elif file_extension == 'txt':
+                            raw_text = uploaded_file.getvalue().decode("utf-8")
+                        
+                        question_texts = extract_questions(raw_text)
+                        st.session_state.question_texts = question_texts
+                        
+                        status_container.empty() # ล้าง Custom Loading
+                        
+                        if not question_texts:
+                            st.error(t('no_questions_found'))
+                            st.info(t('file_tip'))
+                            return 
+                        
+                    except Exception as e:
+                        status_container.empty() # ล้าง Custom Loading
+                        st.error(f"{t('file_read_error')} {e}")
+                        return 
+                
+                # Rerun ครั้งเดียวหลังจากสกัดเสร็จ เพื่อแสดงผลลัพธ์
+                st.rerun() 
+
+            question_texts = st.session_state.question_texts
+            if question_texts:
+                st.success(t('extracted_questions').format(count=len(question_texts), filename=uploaded_file.name))
+            
+
+
+    # --- Step 2: Start Analysis ---
+    st.markdown("---")
+    st.header(t('step2_title'))
+    
+    # ใช้ Callback function เพื่อวิเคราะห์และบันทึกผลลัพธ์ (แก้ปัญหา Rerun ซ้ำซ้อน)
+    def start_analysis_callback():
+        # ตรวจสอบ API ตาม provider ที่เลือก
+        provider = st.session_state.get('selected_provider', DEFAULT_PROVIDER)
+        provider_available = (
+            (provider == "Gemini (Google)" and GEMINI_AVAILABLE) or
+            (provider == "Groq (ฟรี+เร็วมาก)" and GROQ_AVAILABLE) or
+            (provider == "OpenRouter (หลายโมเดลฟรี)" and OPENROUTER_AVAILABLE)
+        )
         
+        if not provider_available:
+            st.error(f"&#10060; ไม่พบ API Key สำหรับ {provider} - กรุณาตั้งค่าใน .env")
+            return
+            
+        question_texts = st.session_state.question_texts
+        analysis_results = []
+        
+        # ใช้ st.status เพื่อรวมสถานะทั้งหมด
+        with st.status(t('starting_analysis'), expanded=True) as status_box:
+            
+            # ดึงโมเดลที่ผู้ใช้เลือก
+            provider_models = AI_PROVIDERS.get(provider, {}).get("models", {})
+            current_model = provider_models.get(st.session_state.selected_model, "unknown")
+            st.write(f"⏳ กำลังวิเคราะห์ {len(question_texts)} ข้อ ด้วย `{provider}` > `{current_model}`")
+            progress_bar = st.progress(0, text=t('analysis_progress').format(current=0, total=len(question_texts)))
+            
+            for i, q_text in enumerate(question_texts):
+                st.write(t('analyzing_question').format(num=i+1))
+                analysis = analyze_question(q_text, question_id=i+1)  # ใช้ wrapper function
+                if "**เกิดข้อผิดพลาด" in analysis.get('improvement_suggestion', ''):
+                     st.error(f"Error analyzing question {i+1}: {analysis.get('improvement_suggestion')}")
+
+                analysis["question_text"] = q_text 
+                analysis_results.append(analysis)
+                
+                progress_percent = (i + 1) / len(question_texts)
+                progress_bar.progress(progress_percent, text=t('analysis_progress').format(current=i+1, total=len(question_texts)))
+                
+                # เพิ่ม delay ระหว่าง requests เพื่อหลีกเลี่ยง rate limit
+                if i < len(question_texts) - 1:  # ไม่ต้องรอหลังข้อสุดท้าย
+                    time.sleep(2)  # รอ 2 วินาทีระหว่างแต่ละ request
+            
+            # บันทึกผลลัพธ์ลงใน session state
+            st.session_state.analysis_results = analysis_results
+            
+            # อัพเดทสถานะ
+            status_box.update(label=t('analysis_complete'), state="complete", expanded=False)
+
+
+    if st.session_state.question_texts and st.button(
+        t('start_analysis_btn'), 
+        type="primary", 
+        use_container_width=True,
+        on_click=start_analysis_callback 
+    ):
+        pass
+
+
+    # --- Step 3: Report ---
+    if st.session_state.analysis_results:
+        st.divider()
+        st.header(t('step3_title'))
+
         all_analysis = st.session_state.analysis_results
         successful_analysis = [a for a in all_analysis if a.get('bloom_level') != "ไม่สามารถระบุได้"]
         bloom_check = check_bloom_criteria(successful_analysis)
         summary_data, df = create_analysis_report(all_analysis, bloom_check)
         
-        # 1. Overview Grid
-        render_dashboard_overview(summary_data, bloom_check)
+        # ดึง valid_total ออกมาเพื่อใช้ในการคำนวณสัดส่วนในตาราง (แก้ NameError)
+        valid_total = summary_data["การกระจายระดับความคิด"].get("valid_total", 0)
         
-        # 2. Detailed Views
-        render_detailed_results(all_analysis, bloom_check, summary_data, df)
-        
-        # Auto-save history
+        # บันทึกประวัติการวิเคราะห์
         save_analysis_history(
             st.session_state.get('last_uploaded_file_name', 'unknown'),
             all_analysis,
             summary_data
         )
 
-    # --- Section: Generate New Exam (Footer) ---
-    st.markdown("---")
-    st.header(t('gen_exam_title'))
-    with st.expander("Create new exam questions...", expanded=False):
-        col_gen1, col_gen2 = st.columns(2)
-        with col_gen1:
-            subject = st.text_input("Topic / Subject", placeholder="e.g. Science Grade 9")
-            bloom_level = st.selectbox("Bloom Level", ["Remember", "Understand", "Apply", "Analyze", "Evaluate", "Create"])
-        with col_gen2:
-            num_questions = st.number_input("Count", min_value=1, max_value=20, value=5)
-            difficulty = st.selectbox("Difficulty", ["Easy", "Medium", "Hard"])
-        
-        if st.button("🚀 Generate Now", type="primary"):
-            if not subject: st.warning("Please enter a subject.")
+        # ใช้ Tabs สำหรับจัดระเบียบรายงาน - เพิ่ม Export tab
+        tab_summary, tab_details, tab_export = st.tabs([
+            t('tab_summary'), 
+            t('tab_details'),
+            "&#128229; Export รายงาน"
+        ])
+
+        # --- Tab: Summary ---
+        with tab_summary:
+            st.subheader(t('summary_title'))
+            stats = summary_data["สถิติโดยรวม"]
+            col1, col2, col3, col4 = st.columns(4) 
+
+            # Helper function to extract percent value
+            def get_percent_delta(text):
+                try: 
+                    return text.split('(')[1].strip('%)') 
+                except IndexError: 
+                    return "0.0%"
+
+            # Good Questions Metric
+            good_count_str = stats["ข้อสอบ **ดี** (ใช้ได้เลย)"].split(' ')[0]
+            good_percent_str = get_percent_delta(stats["ข้อสอบ **ดี** (ใช้ได้เลย)"])
+            col1.metric(t('good_questions'), good_count_str, delta=f"{good_percent_str}%", delta_color="normal")
+            
+            # To Improve Metric
+            improve_count_str = stats["ข้อสอบ **ต้องปรับปรุง**"].split(' ')[0]
+            improve_percent_str = get_percent_delta(stats["ข้อสอบ **ต้องปรับปรุง**"])
+            col2.metric(t('needs_improvement'), improve_count_str, delta=f"{improve_percent_str}%", delta_color="inverse")
+            
+            # Total Questions 
+            col3.metric(t('total_questions'), stats["จำนวนข้อสอบทั้งหมด"].split(' ')[0])
+            
+            # Successfully Analyzed
+            col4.metric(t('analyzed_success'), stats["ข้อสอบที่วิเคราะห์สำเร็จ"].split(' ')[0])
+            
+            st.markdown("---")
+            st.subheader(t('bloom_criteria_title'))
+            bloom_stats = summary_data["การกระจายระดับความคิด"]
+            
+            if bloom_check['pass']:
+                st.success(f"**🎉 {bloom_stats['ผลลัพธ์โดยรวม']}**")
             else:
-                with st.spinner("Generating..."):
-                    # Use language-aware generation
-                    lang = st.session_state.get('language', 'th')
-                    lang_prompt = f"(Generate in {lang} language)"
-                    exams, err = generate_exam_with_ai(subject + " " + lang_prompt, bloom_level, num_questions, difficulty)
+                st.warning(f"**&#10060; {bloom_stats['ผลลัพธ์โดยรวม']}**")
+                
+            col_b1, col_b2, col_b3 = st.columns(3)
+            col_b1.metric(t('bloom_low'), bloom_stats["ระดับความคิดต่ำ (จำ/เข้าใจ) (เป้าหมาย ≤ 40%)"], delta=f"{t('target')} ≤ 40%")
+            col_b2.metric(t('bloom_mid'), bloom_stats["ระดับความคิดกลาง (ใช้/วิเคราะห์) (เป้าหมาย ≥ 50%)"], delta=f"{t('target')} ≥ 50%")
+            col_b3.metric(t('bloom_high'), bloom_stats["ระดับความคิดสูง (ประเมิน/สร้างสรรค์) (เป้าหมาย ≥ 10%)"], delta=f"{t('target')} ≥ 10%")
+            
+            st.markdown(f"{t('unidentified_bloom')} {bloom_stats['ข้อที่ระบุระดับความคิดไม่ได้']}")
+            
+            
+            # --- สร้าง Pie Chart และ ตารางสรุป ---
+            st.markdown("---")
+            st.subheader(t('bloom_distribution'))
+            
+            col_chart, col_table = st.columns([1, 1.2]) 
+
+            # 1. Pie Chart 
+            with col_chart:
+                bloom_counts = bloom_stats['raw_counts']
+                # เตรียมข้อมูลสำหรับ Pie Chart (ไม่รวม Unknown)
+                chart_data_raw = {
+                    'ระดับ Bloom': list(bloom_counts.keys())[:-1],
+                    'จำนวนข้อ': list(bloom_counts.values())[:-1],
+                    'สี': [get_bloom_color(level) for level in list(bloom_counts.keys())[:-1]]
+                }
+                chart_df = pd.DataFrame(chart_data_raw)
+                
+                if not chart_df.empty and chart_df['จำนวนข้อ'].sum() > 0:
+                    base = alt.Chart(chart_df).encode(
+                        theta=alt.Theta("จำนวนข้อ", stack=True)
+                    )
                     
+                    pie = base.mark_arc(outerRadius=120).encode(
+                        color=alt.Color("ระดับ Bloom", scale=alt.Scale(domain=chart_df['ระดับ Bloom'].tolist(), range=chart_df['สี'].tolist())),
+                        order=alt.Order("จำนวนข้อ", sort="descending"),
+                        tooltip=["ระดับ Bloom", "จำนวนข้อ"]
+                    )
+                    
+                    st.altair_chart(pie, use_container_width=True)
+                else:
+                    st.warning("ไม่มีข้อมูลข้อสอบที่วิเคราะห์ระดับ Bloom ได้")
+            
+            # 2. ตารางสรุปคุณภาพ/จำนวนข้อตามระดับ Bloom
+            with col_table:
+                # สร้าง DataFrame สรุป
+                summary_table_data = []
+                for level, count in bloom_stats['raw_counts'].items():
+                    if level == 'Unknown': continue 
+                    
+                    level_items = [a for a in all_analysis if level.lower() in a.get('bloom_level', '').lower()]
+                    good_count = sum(1 for a in level_items if a.get('is_good_question') is True)
+                    
+                    percent_text = f"{round((count / valid_total) * 100, 1) if valid_total > 0 else 0}%"
+                    
+                    summary_table_data.append({
+                        'ระดับ Bloom': level,
+                        'จำนวนข้อ': count,
+                        'สัดส่วน': percent_text,
+                        'คุณภาพดี': good_count,
+                        'ต้องปรับปรุง': count - good_count
+                    })
+                
+                summary_table_df = pd.DataFrame(summary_table_data)
+                
+                st.markdown("**ตารางสรุปจำนวนและคุณภาพข้อสอบตามระดับ Bloom**")
+                st.dataframe(
+                    summary_table_df, 
+                    hide_index=True, 
+                    use_container_width=True,
+                    column_config={
+                        'จำนวนข้อ': st.column_config.NumberColumn(format="%d ข้อ"),
+                        'คุณภาพดี': st.column_config.NumberColumn(format="%d ข้อ"),
+                        'ต้องปรับปรุง': st.column_config.NumberColumn(format="%d ข้อ"),
+                    }
+                )
+
+        # --- Tab: Details ---
+        with tab_details:
+            st.subheader(t('details_title'))
+            
+            # 1. แสดง DataFrame สรุปก่อน
+            st.dataframe(
+                df[[
+                    'ข้อที่', 'คุณภาพข้อสอบ', 'ระดับความคิด', 
+                    'มาตรฐานหลักสูตร', 'คำตอบ', 'เหตุผลโดยย่อ', 
+                    'ข้อเสนอแนะ'
+                ]],
+                column_config={
+                    "คุณภาพข้อสอบ": st.column_config.Column("คุณภาพข้อสอบ", width="small"),
+                    "ระดับความคิด": st.column_config.Column("ระดับความคิด", width="small"),
+                    "เหตุผลโดยย่อ": st.column_config.Column("เหตุผลโดยย่อ", width="medium"),
+                },
+                use_container_width=True,
+                hide_index=True
+            )
+            
+            # 2. Loop สร้าง expander สำหรับทุกข้อ
+            st.markdown("---")
+            st.markdown(t('click_detail'))
+            
+            for q_index, item in enumerate(all_analysis):
+                quality_status = t('good') if item.get('is_good_question') is True and item.get('bloom_level') != "ไม่สามารถระบุได้" else t('improve')
+                expander_title = f"**{t('question_num')} {q_index+1}** | {quality_status} | {t('bloom_level')}: **{item.get('bloom_level', 'ไม่ระบุ')}**"
+                
+                # ใช้ st.expander เพื่อแสดงรายละเอียด
+                with st.expander(expander_title):
+                    
+                    st.markdown(t('full_question'))
+                    st.code(item.get('question_text', 'N/A'), language='markdown')
+                    
+                    st.markdown("---")
+
+                    # การแสดงผลแบบชิดและมีสีสันสวยงาม 
+                    bloom_color = get_bloom_color(item.get('bloom_level', 'ไม่ระบุ'))
+                    text_color = get_text_color_for_bloom(item.get('bloom_level', 'ไม่ระบุ'))
+                    
+                    col_det1, col_det2, col_det3 = st.columns([1, 1, 1]) 
+
+                    with col_det1:
+                        # แสดง Bloom Level
+                        st.markdown(
+                            f"""
+                            <div style='background-color:{bloom_color}; color:{text_color}; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 10px;'>
+                                <strong>&#128161; ระดับ Bloom:</strong> {item.get('bloom_level', 'N/A')}
+                            </div>
+                            """, unsafe_allow_html=True
+                        )
+                    
+                    with col_det2:
+                         # แสดง Difficulty (พร้อมแก้ไขสีตัวอักษร)
+                        difficulty_level = item.get('difficulty', 'ไม่ระบุ')
+                        difficulty_color = {"ง่าย": "#008000", "ปานกลาง": "#FFA500", "ยาก": "#FF4500"}.get(difficulty_level, "#808080")
+                        
+                        # กำหนดสีตัวอักษรตามพื้นหลัง
+                        if difficulty_level in ["ปานกลาง"]: 
+                            difficulty_text_color = "white" 
+                        else:
+                            difficulty_text_color = "white"
+                        
+                        st.markdown(
+                            f"""
+                            <div style='background-color:{difficulty_color}; color:{difficulty_text_color}; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 10px;'>
+                                <strong>{t('difficulty')}</strong> {difficulty_level}
+                            </div>
+                            """, unsafe_allow_html=True
+                        )
+
+                    with col_det3:
+                        # แสดง Correct Option
+                        st.markdown(
+                            f"""
+                            <div style='background-color:#0077B6; color:white; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 10px;'>
+                                <strong>{t('correct_answer')}</strong> {item.get('correct_option', 'N/A')}
+                            </div>
+                            """, unsafe_allow_html=True
+                        )
+
+                    # ข้อมูลหลัก 
+                    st.markdown(f"{t('curriculum_indicator')} `{item.get('curriculum_standard', 'N/A')}`")
+                    st.markdown(f"{t('bloom_reason')} {item.get('reasoning', 'N/A')}")
+                    
+                    st.divider()
+                    st.subheader(t('answer_analysis_title'))
+                    st.markdown(f"{t('correct_analysis')} {item.get('correct_option_analysis', 'N/A')}")
+                    st.markdown(f"{t('distractor_analysis')} {item.get('distractor_analysis', 'N/A')}")
+                    st.markdown(f"{t('why_good_distractor')} {item.get('why_good_distractor', 'N/A')}")
+                    st.warning(f"{t('improvement_suggestion')} {item.get('improvement_suggestion', 'N/A')}")
+                    
+                    # ปุ่มปรับปรุงข้อสอบด้วย AI
+                    if st.button(f"&#10024; ปรับปรุงข้อสอบข้อที่ {q_index+1}", key=f"improve_{q_index}"):
+                        with st.spinner("กำลังปรับปรุงข้อสอบ..."):
+                            improved, err = improve_question_with_ai(
+                                item.get('question_text', ''),
+                                item.get('improvement_suggestion', '')
+                            )
+                            if improved:
+                                st.success("&#9989; ข้อสอบที่ปรับปรุงแล้ว:")
+                                st.markdown(improved)
+                            else:
+                                st.error(f"&#10060; เกิดข้อผิดพลาด: {err}")
+                
+                st.divider() 
+
+
+        # --- Tab: Export ---
+        with tab_export:
+            st.subheader("&#128229; ดาวน์โหลดรายงานผลวิเคราะห์")
+            
+            col_excel, col_info = st.columns([1, 2])
+            
+            with col_excel:
+                if EXCEL_AVAILABLE:
+                    excel_data = export_to_excel(all_analysis)
+                    if excel_data:
+                        st.download_button(
+                            label="📊 ดาวน์โหลด Excel",
+                            data=excel_data,
+                            file_name=f"exam_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True
+                        )
+                else:
+                    st.warning("ต้องติดตั้ง openpyxl เพื่อใช้ฟีเจอร์นี้")
+            
+            with col_info:
+                st.info(f"""
+                **ข้อมูลที่จะ Export:**
+                - จำนวนข้อสอบ: {len(all_analysis)} ข้อ
+                - ข้อสอบคุณภาพดี: {sum(1 for a in all_analysis if a.get('is_good_question'))} ข้อ
+                - ข้อสอบต้องปรับปรุง: {len(all_analysis) - sum(1 for a in all_analysis if a.get('is_good_question'))} ข้อ
+                """)
+
+    # --- Section: Generate New Exam ---
+    st.divider()
+    st.header("&#127381; สร้างข้อสอบใหม่ด้วย AI")
+    
+    with st.expander("&#128161; คลิกเพื่อสร้างข้อสอบใหม่", expanded=False):
+        col_gen1, col_gen2 = st.columns(2)
+        
+        with col_gen1:
+            subject = st.text_input("&#128218; วิชา/หัวข้อ", placeholder="เช่น คณิตศาสตร์ ม.3, วิทยาศาสตร์ ป.6")
+            bloom_level = st.selectbox(
+                "&#129504; ระดับ Bloom's Taxonomy",
+                ["จำ (Remember)", "เข้าใจ (Understand)", "ประยุกต์ใช้ (Apply)", 
+                 "วิเคราะห์ (Analyze)", "ประเมินค่า (Evaluate)", "สร้างสรรค์ (Create)"]
+            )
+        
+        with col_gen2:
+            num_questions = st.number_input("📝 จำนวนข้อ", min_value=1, max_value=20, value=5)
+            difficulty = st.selectbox("📊 ระดับความยาก", ["ง่าย", "ปานกลาง", "ยาก"])
+        
+        if st.button("&#128640; สร้างข้อสอบ", type="primary", use_container_width=True):
+            if not subject:
+                st.warning("กรุณาระบุวิชา/หัวข้อ")
+            else:
+                with st.spinner(f"กำลังสร้างข้อสอบ {num_questions} ข้อ..."):
+                    exams, err = generate_exam_with_ai(subject, bloom_level, num_questions, difficulty)
                     if exams:
-                        for i, ex in enumerate(exams, 1):
-                            st.markdown(f"**{i}. {ex.get('question')}**")
-                            st.caption(f"Ans: {ex.get('answer')}")
+                        st.success(f"&#9989; สร้างข้อสอบสำเร็จ {len(exams)} ข้อ!")
+                        for i, exam in enumerate(exams, 1):
+                            with st.expander(f"ข้อ {i}: {exam.get('question', 'N/A')[:50]}..."):
+                                st.markdown(f"**คำถาม:** {exam.get('question', 'N/A')}")
+                                st.markdown("**ตัวเลือก:**")
+                                options = exam.get('options', [])
+                                for j, opt in enumerate(options):
+                                    prefix = ['ก.', 'ข.', 'ค.', 'ง.'][j] if j < 4 else f"{j+1}."
+                                    st.markdown(f"   {prefix} {opt}")
+                                st.markdown(f"**เฉลย:** {exam.get('answer', 'N/A')}")
+                                st.markdown(f"**คำอธิบาย:** {exam.get('explanation', 'N/A')}")
+                    else:
+                        st.error(f"&#10060; เกิดข้อผิดพลาด: {err}")
 
 
 

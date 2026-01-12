@@ -1,9 +1,11 @@
 streamlit
 PyPDF2
-pytesseract
-pdf2image
 python-dotenv
 google-generativeai
 pandas
-gunicorn
-groq\r\nopenai\r\nopenpyxl\r\nfpdf2\r\npython-docx
+altair
+openpyxl
+python-docx
+fpdf2
+openai
+groq
