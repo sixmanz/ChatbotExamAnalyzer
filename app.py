@@ -1507,7 +1507,7 @@ def render_input_studio():
         # Button Logic
         if st.session_state.question_texts:
             # Ready to Analyze state
-            btn_label = t('analyze_this_file').format(filename=uploaded_file.name)
+            btn_label = t('analyze_this_file').replace('{filename}', str(uploaded_file.name))
             st.button(
                 btn_label, 
                 type="primary", 
