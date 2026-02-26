@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+@theme {
+  --font-inter: "Inter", sans-serif;
+  --font-outfit: "Outfit", sans-serif;
+
+  /* Professional Educator Palette */
+  --color-bg-main: #f8fafc;
+  /* Slate-50 */
+  --color-bg-card: #ffffff;
+  --color-bg-card-hover: #f1f5f9;
+  /* Slate-100 */
+
+  --color-primary: #4f46e5;
+  /* Indigo-600 */
+  --color-primary-glow: rgba(79, 70, 229, 0.1);
+  --color-secondary: #0ea5e9;
+  /* Sky-500 */
+  --color-accent: #8b5cf6;
+  /* Violet-500 */
+
+  --color-text-main: #1e293b;
+  /* Slate-800 */
+  --color-text-dim: #475569;
+  /* Slate-600 */
+  --color-text-muted: #94a3b8;
+  /* Slate-400 */
+}
+
+@layer base {
+  * {
+    @apply m-0 p-0 box-border;
+  }
+
+  body {
+    @apply bg-bg-main text-text-main font-inter antialiased min-h-screen transition-colors duration-500;
+    /* Soft Educational Gradient */
+    background-image:
+      radial-gradient(at 0% 0%, rgba(79, 70, 229, 0.05) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(14, 165, 233, 0.03) 0px, transparent 50%);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-outfit font-bold tracking-tight text-slate-900;
+  }
+}
+
+@layer components {
+
+  /* Simple Card instead of heavy glass */
+  .glass {
+    @apply bg-white border border-slate-200 rounded-2xl shadow-sm transition-all duration-300;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-xl font-outfit font-semibold cursor-pointer transition-all duration-200 gap-2 border-none text-base active:scale-95;
+  }
+
+  .btn-primary {
+    @apply bg-primary text-white shadow-md hover:scale-[1.02] hover:bg-indigo-700 hover:shadow-lg;
+  }
+
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-br from-indigo-600 to-violet-500;
+  }
+
+  /* Educational Section Titles */
+  .section-badge {
+    @apply inline-block px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-bold bg-indigo-50 text-indigo-600 border border-indigo-100 mb-4;
+  }
+}
+
+@layer utilities {
+  .animate-fade {
+    @apply animate-[fadeIn_0.5s_ease-out_forwards];
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

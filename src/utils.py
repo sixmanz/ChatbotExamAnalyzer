@@ -3,11 +3,11 @@ import os
 import re
 import json
 import io
-import streamlit as st
 import pandas as pd
 from datetime import datetime
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
+from pypdf import PdfReader
 
 # --- Optional Imports ---
 try:
@@ -16,10 +16,7 @@ try:
 except ImportError:
     DOCX_AVAILABLE = False
 
-try:
-    EXCEL_AVAILABLE = True
-except ImportError:
-    EXCEL_AVAILABLE = False
+EXCEL_AVAILABLE = True # Openpyxl is installed
 
 # --- Colors ---
 BLOOM_COLORS = {
@@ -50,8 +47,7 @@ def get_text_color_for_bloom(level):
 
 # --- File Handling ---
 def extract_text_from_pdf(file):
-    """สกัดข้อความจากไฟล์ PDF (Cached)"""
-    from PyPDF2 import PdfReader
+    """สกัดข้อความจากไฟล์ PDF"""
     text = ""
     try:
         pdf_reader = PdfReader(file)

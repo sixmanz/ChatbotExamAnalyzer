@@ -80,6 +80,14 @@ def clear_all_history():
         c.execute('DELETE FROM exams')
         conn.commit()
 
+def delete_exam(exam_id):
+    """ลบประวัติเฉพาะ ID"""
+    init_db()
+    with sqlite3.connect(DB_Name) as conn:
+        c = conn.cursor()
+        c.execute('DELETE FROM exams WHERE id = ?', (exam_id,))
+        conn.commit()
+
 # =====================================================
 # QUESTION BANK - Save Good Questions for Reuse
 # =====================================================

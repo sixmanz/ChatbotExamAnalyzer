@@ -3,7 +3,6 @@ import os
 import re
 import json
 import time # Fixed missing import
-import streamlit as st
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig 
 from dotenv import load_dotenv
@@ -99,7 +98,7 @@ def extract_questions_with_ai(raw_text):
         print(f"AI Extraction Failed: {e}")
         return []
 
-@st.cache_data(show_spinner=False)
+# --- Extraction Logic ---
 def extract_questions(raw_text):
     """สกัดข้อสอบเป็นรายข้อ (ปรับปรุงให้รองรับหลายรูปแบบ: 1., 1), (1), ข้อ 1, ข้อที่ 1)"""
     # 1. ทำความสะอาดข้อความทั้งหมด
@@ -155,21 +154,18 @@ def extract_questions(raw_text):
     # If Regex found too few questions (< 2) but text is long (> 300 chars), try AI.
     if len(valid_questions) < 2 and len(raw_text) > 300:
         if GEMINI_AVAILABLE:
-            st.toast("⚠️ รูปแบบซับซ้อน: กำลังใช้ AI แกะข้อสอบ (รอสักครู่)...", icon="🤖")
             ai_questions = extract_questions_with_ai(cleaned_text)
             if len(ai_questions) > len(valid_questions):
-                st.success(f"🤖 AI แกะได้ {len(ai_questions)} ข้อ!")
                 return ai_questions
 
     return valid_questions
 
 # --- Analysis Logic ---
-def build_analysis_prompt(question_text, question_id=1):
-    """สร้าง Prompt ที่เป็นมาตรฐานเดียวกันทุก Provider"""
+def build_analysis_prompt(question_text, question_id=1, custom_prompt="", language='th', subject="ทั่วไป", grade_level="ไม่ระบุ"):
+    """สร้าง Prompt ที่เป็นมาตรฐานเดียวกันทุก Provider โดยระบุวิชาและระดับชั้น"""
     
-    # 1. Get Custom or Default System Prompt
-    custom_prompt = st.session_state.get('custom_prompt', '').strip()
-    language = st.session_state.get('language', 'th')
+    # Subject context
+    context_instruction = f"\n[บริบท: วิชา {subject}, ระดับชั้น {grade_level}]"
     
     # Language Instruction
     lang_instruction = "IMPORTANT: Please output your analysis reasoning inside the JSON in Thai language."
@@ -225,7 +221,8 @@ Analyze and answer in JSON only (No Markdown text). Required keys:
          else:
             valid_difficulty = "ง่าย, ปานกลาง, ยาก"
             valid_options = "ก, ข, ค, ง"
-            user_message = f"""คำถามข้อที่ {question_id}:
+            user_message = f"""{context_instruction}
+คำถามข้อที่ {question_id}:
 {question_text}
 {rag_context}
 
@@ -243,15 +240,14 @@ Analyze and answer in JSON only (No Markdown text). Required keys:
 
     return system_prompt, user_message
 
-def analyze_with_gemini(question_text, question_id=1):
+def analyze_with_gemini(question_text, question_id=1, provider_config=None, model_name=DEFAULT_MODEL_NAME, custom_prompt="", language='th', subject="ทั่วไป", grade_level="ไม่ระบุ"):
     """เรียกใช้ Gemini API เพื่อวิเคราะห์ข้อสอบ"""
     if not GEMINI_AVAILABLE:
         return create_error_response("ไม่พบ GEMINI_API_KEY")
 
-    system_instruction, user_message = build_analysis_prompt(question_text, question_id)
+    system_instruction, user_message = build_analysis_prompt(question_text, question_id, custom_prompt, language, subject, grade_level)
 
-    selected_model_name = st.session_state.get('selected_model', DEFAULT_MODEL_NAME)
-    model_id = AVAILABLE_AI_MODELS.get(selected_model_name, "gemini-2.0-flash")
+    model_id = AVAILABLE_AI_MODELS.get(model_name, "gemini-2.0-flash")
 
     # Re-configure to ensure key is set
     genai.configure(api_key=GEMINI_API_KEY)
@@ -339,7 +335,7 @@ def analyze_with_gemini(question_text, question_id=1):
 
     return create_error_response(last_error_message)
 
-def analyze_with_groq(question_text, question_id=1):
+def analyze_with_groq(question_text, question_id=1, model_name="Llama 3.3 70B (แนะนำ)", subject="ทั่วไป", grade_level="ไม่ระบุ"):
     """วิเคราะห์ข้อสอบผ่าน Groq API"""
     if not GROQ_AVAILABLE:
         return create_error_response("ไม่พบ GROQ_API_KEY")
@@ -347,10 +343,9 @@ def analyze_with_groq(question_text, question_id=1):
     from groq import Groq
     client = Groq(api_key=GROQ_API_KEY)
     
-    selected_model = st.session_state.get('selected_model', 'Llama 3.3 70B (แนะนำ)')
-    model_id = AI_PROVIDERS["Groq (ฟรี+เร็วมาก)"]["models"].get(selected_model, "llama-3.3-70b-versatile")
+    model_id = AI_PROVIDERS["Groq (ฟรี+เร็วมาก)"]["models"].get(model_name, "llama-3.3-70b-versatile")
     
-    system_prompt, user_message = build_analysis_prompt(question_text, question_id)
+    system_prompt, user_message = build_analysis_prompt(question_text, question_id, subject=subject, grade_level=grade_level)
     
     max_retries = 3
     last_error = ""
@@ -377,7 +372,7 @@ def analyze_with_groq(question_text, question_id=1):
             
     return create_error_response(f"Groq Error: {last_error}")
 
-def analyze_with_openrouter(question_text, question_id=1):
+def analyze_with_openrouter(question_text, question_id=1, model_name="Llama 3.2 3B (ฟรี)", subject="ทั่วไป", grade_level="ไม่ระบุ"):
     """วิเคราะห์ข้อสอบผ่าน OpenRouter API"""
     if not OPENROUTER_AVAILABLE:
         return create_error_response("ไม่พบ OPENROUTER_API_KEY")
@@ -388,10 +383,9 @@ def analyze_with_openrouter(question_text, question_id=1):
         api_key=OPENROUTER_API_KEY
     )
     
-    selected_model = st.session_state.get('selected_model', 'Llama 3.2 3B (ฟรี)')
-    model_id = AI_PROVIDERS["OpenRouter (หลายโมเดลฟรี)"]["models"].get(selected_model, "meta-llama/llama-3.2-3b-instruct:free")
+    model_id = AI_PROVIDERS["OpenRouter (หลายโมเดลฟรี)"]["models"].get(model_name, "meta-llama/llama-3.2-3b-instruct:free")
     
-    system_prompt, user_message = build_analysis_prompt(question_text, question_id)
+    system_prompt, user_message = build_analysis_prompt(question_text, question_id, subject=subject, grade_level=grade_level)
     
     max_retries = 3
     last_error = ""
@@ -421,29 +415,27 @@ def analyze_with_openrouter(question_text, question_id=1):
 
     return create_error_response(f"OpenRouter Error: {last_error}")
 
-def analyze_question(question_text, question_id=1):
+def analyze_question(question_text, question_id=1, provider=DEFAULT_PROVIDER, model_name=DEFAULT_MODEL_NAME, subject="ทั่วไป", grade_level="ไม่ระบุ"):
     """Wrapper function"""
-    provider = st.session_state.get('selected_provider', DEFAULT_PROVIDER)
-    
     if provider == "⚔️ Battle Mode (Gemini vs Groq)":
-        return analyze_with_battle(question_text, question_id)
+        return analyze_with_battle(question_text, question_id, subject=subject, grade_level=grade_level)
     elif provider == "Gemini (Google)":
-        return analyze_with_gemini(question_text, question_id)
+        return analyze_with_gemini(question_text, question_id, model_name=model_name, subject=subject, grade_level=grade_level)
     elif provider == "Groq (ฟรี+เร็วมาก)":
-        return analyze_with_groq(question_text, question_id)
+        return analyze_with_groq(question_text, question_id, model_name=model_name, subject=subject, grade_level=grade_level)
     elif provider == "OpenRouter (หลายโมเดลฟรี)":
-        return analyze_with_openrouter(question_text, question_id)
+        return analyze_with_openrouter(question_text, question_id, model_name=model_name, subject=subject, grade_level=grade_level)
     else:
-        return analyze_with_gemini(question_text, question_id)
+        return analyze_with_gemini(question_text, question_id, model_name=model_name, subject=subject, grade_level=grade_level)
 
-def analyze_with_battle(question_text, question_id=1):
+def analyze_with_battle(question_text, question_id=1, subject="ทั่วไป", grade_level="ไม่ระบุ"):
     """เปรียบเทียบผลลัพธ์จาก 2 โมเดล (Gemini vs Groq)"""
     # 1. Analyze with Gemini
-    res_gemini = analyze_with_gemini(question_text, question_id)
+    res_gemini = analyze_with_gemini(question_text, question_id, subject=subject, grade_level=grade_level)
     
     # 2. Analyze with Groq (Llama 3)
     # Force use of default Groq model even if not selected
-    res_groq = analyze_with_groq(question_text, question_id)
+    res_groq = analyze_with_groq(question_text, question_id, subject=subject, grade_level=grade_level)
     
     # 3. Create a merged/comparison result
     # We will return Gemini's result as structure but append Battle Info
@@ -460,10 +452,8 @@ def analyze_with_battle(question_text, question_id=1):
     return battle_result
 
 # --- Generation Logic ---
-def generate_exam_with_ai(subject, bloom_level, num_questions, difficulty="ปานกลาง"):
-    """สร้างข้อสอบใหม่ด้วย AI"""
-    provider = st.session_state.get('selected_provider', DEFAULT_PROVIDER)
-    
+def generate_exam_with_ai(subject, num_questions=5, bloom_level="Apply", difficulty="ปานกลาง", provider=DEFAULT_PROVIDER):
+    """สร้างชุดข้อสอบใหม่จาก AI"""
     prompt = f"""สร้างข้อสอบปรนัย 4 ตัวเลือก จำนวน {num_questions} ข้อ
 วิชา: {subject}
 Level: {bloom_level}
@@ -515,9 +505,8 @@ Level: {bloom_level}
     except Exception as e:
         return None, str(e)
 
-def improve_question_with_ai(question_text, suggestion):
+def improve_question_with_ai(question_text, suggestion, provider=DEFAULT_PROVIDER):
     """ปรับปรุงข้อสอบตามคำแนะนำ AI"""
-    provider = st.session_state.get('selected_provider', DEFAULT_PROVIDER)
     
     prompt = f"""ข้อสอบเดิม:
 {question_text}
